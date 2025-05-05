@@ -2,7 +2,8 @@ import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
 
-import searchEngineRoutes from './routes/searchEngine'
+import yandexSearchEngineRoutes from './routes/yandexSearchEngineRoutes'
+import unitySearchEngineRoutes from './routes/unitySearchEngineRoutes'
 import telegramRoutes from './routes/telegram'
 import { handleErrors } from './middlewares/handleErrors'
 
@@ -13,8 +14,9 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
-app.use('/api/search-engine', searchEngineRoutes)
-app.use('/api', telegramRoutes)
+app.use('/api/yandex-search', yandexSearchEngineRoutes)
+app.use('/api/unity-search', unitySearchEngineRoutes)
+app.use('/api/search-tg', telegramRoutes)
 
 app.use(handleErrors())
 
@@ -25,3 +27,7 @@ app.get('/', (req, res) => {
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`)
 })
+
+//TODO: Start with proxy rotation and emergency wipe (safety first)
+//TODO: Implement basic caching
+//TODO: Complete Red Cross API integration

@@ -1,6 +1,5 @@
-import { Router, Request, Response, NextFunction } from 'express'
+import { Request, Response, NextFunction } from 'express'
 import { searchImageOnYandex } from '../utils/yandexReverseImageSearch'
-import { searchImageOnGoogleLens } from '../utils/googleReverseImageSearch'
 
 export const startSearching = async (req: Request, res: Response, next: NextFunction) => {
   const { imagePath } = req.body
@@ -10,7 +9,7 @@ export const startSearching = async (req: Request, res: Response, next: NextFunc
   }
 
   try {
-    const results = await searchImageOnGoogleLens(imagePath)
+    const results = await searchImageOnYandex(imagePath)
     res.json({ results })
   } catch (error) {
     next(error)
