@@ -33,3 +33,5 @@ export const FULLNAME_FOR_SEARCH = [
   { firstName: 'проєктну', lastName: 'діяльність' },
   { firstName: 'відповідь', lastName: 'онлайн' },
 ]
+
+export const TEMP_DIR = './temp_images'
