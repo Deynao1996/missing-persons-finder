@@ -6,10 +6,10 @@ export class YandexHelpersStrategy {
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
     )
     try {
-      await page.goto('https://yandex.com/images/', { waitUntil: 'networkidle2' })
+      await page.goto('https://yandex.ru/images/', { waitUntil: 'networkidle2' })
     } catch (error) {
       console.warn('Initial load failed, retrying with cache...')
-      await page.goto('https://yandex.com/images/', {
+      await page.goto('https://yandex.ru/images/', {
         waitUntil: 'networkidle2',
         timeout: 15000,
       })
@@ -17,8 +17,8 @@ export class YandexHelpersStrategy {
   }
 
   async uploadImage(page: Page, imagePath: string): Promise<void> {
-    await page.waitForSelector('.input__cbir-button', { timeout: 60000, visible: true })
-    await page.click('.input__cbir-button')
+    await page.waitForSelector('.HeaderForm-InlineCbirButton', { timeout: 60000, visible: true })
+    await page.click('.HeaderForm-InlineCbirButton')
 
     const inputSelector = 'input[type=file]'
     await page.waitForSelector(inputSelector)

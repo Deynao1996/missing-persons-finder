@@ -1,11 +1,12 @@
-import path from 'path'
-// import '@tensorflow/tfjs-node'
-import * as canvas from 'canvas'
+import '@tensorflow/tfjs-node' // Must be first
 import * as faceapi from 'face-api.js'
+import * as canvas from 'canvas'
+import path from 'path'
 
 const { Canvas, Image, ImageData } = canvas
 
 faceapi.env.monkeyPatch({ Canvas, Image, ImageData } as any)
+
 const __dirname = path.resolve()
 
 export async function initFaceAPI() {

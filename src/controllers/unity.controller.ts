@@ -36,13 +36,13 @@ export const startSearchingByImage = async (req: Request, res: Response, next: N
 
     const scrapedImages = await scraperService.scrapeLargeImageVolumeFromUnity({
       baseUrl: 'https://www.unityandstrength.in.ua',
-      routes: ['/', '/pro-nas'],
+      routes: ['/'],
       options: {
         outputDir: TEMP_DIR,
         maxImages: 150,
         batchSize: 15,
         minDimensions: { width: 150, height: 150 },
-        // backgroundSelectors: ['.elementor-carousel-image'],
+        backgroundSelectors: ['.swiper-slide-bg'],
       },
     })
 
