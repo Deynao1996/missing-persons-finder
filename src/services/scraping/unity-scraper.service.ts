@@ -1,20 +1,15 @@
 import puppeteer from 'puppeteer'
 import { BulkAcrossWebsites, BulkSearchResult, ScrapLargeVolume, ScrapedImage } from './types'
 import { autoScroll } from '../../utils/puppeteer/auto-scroll.util'
-import { ManifestService } from './manifest.service'
 import path from 'path'
 import fs from 'fs'
-import { delay } from '../../utils/delay.util'
 import { ImageProcessorService } from './image-processor.service'
 import { ProxyService } from '../network/proxy.service'
-import { FaceDescriptorService } from '../face-detection/face-descriptor.service'
 import { UnityWorkerStrategy } from './strategies/unity-worker.strategy'
 
 export class UnityScraperService {
-  private manifestService = new ManifestService()
   private imageProcessor = new ImageProcessorService()
   private proxyService = new ProxyService()
-  private faceDescriptorService = new FaceDescriptorService()
   private workerStrategy = new UnityWorkerStrategy()
 
   async scrapeLargeImageVolumeFromUnity({ baseUrl, options = {}, routes }: ScrapLargeVolume): Promise<ScrapedImage[]> {
@@ -55,43 +50,16 @@ export class UnityScraperService {
       // Process in batches (avoid memory overload)
       for (let i = 0; i < validImages.length; i += options.batchSize || 10) {
         const batch = validImages.slice(i, i + (options.batchSize || 10))
-        const batchResults = await Promise.all(
-          batch.map(async (img, idx) => {
-            try {
-              const filename = `${Date.now()}_${i + idx}.jpeg` // WebP for smaller size
-              const filepath = path.join(routeDir, filename)
-              await this.imageProcessor.downloadAndProcessImage(img.src, filepath, { targetFormat: 'jpeg' })
-
-              const descriptor = await this.faceDescriptorService.getFaceDescriptor(filepath)
-
-              if (!descriptor) {
-                await fs.promises.unlink(filepath) // delete image without face
-                console.log(`No face found in ${img.src}, skipping.`)
-                return null
-              }
-
-              return {
-                url: `${baseUrl}${route}`,
-                imageUrl: img.src,
-                filepath,
-                timestamp: new Date().toISOString(),
-                route: route,
-                metadata: {
-                  width: img.width,
-                  height: img.height,
-                  altText: img.alt,
-                },
-              }
-            } catch (error) {
-              console.error(`Failed image ${img.src}:`, error)
-              return null
-            }
-          }),
+        const batchResults = await this.workerStrategy.processImageBatch(
+          batch,
+          baseUrl,
+          route,
+          routeDir,
+          routeSlug,
+          manifestsDir,
+          i,
         )
-
-        allResults.push(...(batchResults.filter(Boolean) as ScrapedImage[]))
-        this.manifestService.saveRouteManifest(routeSlug, allResults, manifestsDir)
-        await delay(1000 + Math.random() * 2000) // Throttling
+        allResults.push(...batchResults)
       }
 
       await page.close()

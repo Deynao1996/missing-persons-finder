@@ -1,6 +1,7 @@
 import path from 'path'
 import { Page } from 'puppeteer'
 import sharp from 'sharp'
+import { ExtractedImage } from './types'
 
 export class ImageProcessorService {
   async downloadAndProcessImage(
@@ -91,7 +92,7 @@ export class ImageProcessorService {
     }, [])
   }
 
-  async getValidImages(images: { src: string; width: number; height: number; alt: string }[], options: any) {
+  async getValidImages(images: ExtractedImage[], options: any) {
     return images
       .filter(
         (img) =>

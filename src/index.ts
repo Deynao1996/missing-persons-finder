@@ -5,6 +5,7 @@ import dotenv from 'dotenv'
 import yandexSearchEngineRoutes from './routes/yandex.route'
 import unitySearchEngineRoutes from './routes/unity.route'
 import googleSearchEngineRoutes from './routes/google.route'
+import telegramSearchEngineRoutes from './routes/telegram.route'
 import { handleErrors } from './middlewares/handle-errors.middleware'
 import { initFaceAPI } from './utils/face-api/init-face.util'
 
@@ -18,6 +19,7 @@ app.use(express.json())
 app.use('/api/yandex-search', yandexSearchEngineRoutes)
 app.use('/api/google-search', googleSearchEngineRoutes)
 app.use('/api/unity-search', unitySearchEngineRoutes)
+app.use('/api/telegram-search', telegramSearchEngineRoutes)
 
 app.use(handleErrors())
 
@@ -42,7 +44,5 @@ initFaceAPI()
     process.exit(1) // Exit if model loading fails
   })
 
-//TODO: Start with proxy rotation and emergency wipe (safety first)
-//TODO: Implement basic caching
-//TODO: Complete Red Cross API integration
-//TODO: Check @tensorflow/tfjs-node
+//TODO: Automate route discovery on target sites (e.g. crawl category/index pages).
+//TODO: Handle paginated or infinite scroll websites (use Puppeteer scrolling or intercept API calls).

@@ -58,3 +58,10 @@ export interface BulkSearchResult {
     excerpt?: string
   }[]
 }
+
+export interface ExtractedImage {
+  src: string
+  width: number
+  height: number
+  alt: string
+}
