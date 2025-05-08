@@ -3,12 +3,12 @@ import { BulkAcrossWebsites, BulkSearchResult, ScrapLargeVolume, ScrapedImage } 
 import { autoScroll } from '../../utils/puppeteer/auto-scroll.util'
 import path from 'path'
 import fs from 'fs'
-import { ImageProcessorService } from './image-processor.service'
 import { ProxyService } from '../network/proxy.service'
 import { UnityWorkerStrategy } from './strategies/unity-worker.strategy'
+import { WebImageProcessorService } from '../image-processor/web-processor.service'
 
 export class UnityScraperService {
-  private imageProcessor = new ImageProcessorService()
+  private imageProcessor = new WebImageProcessorService()
   private proxyService = new ProxyService()
   private workerStrategy = new UnityWorkerStrategy()
 

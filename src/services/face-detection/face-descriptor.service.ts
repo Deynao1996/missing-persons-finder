@@ -1,8 +1,6 @@
 import * as canvas from 'canvas'
 import * as faceapi from 'face-api.js'
 
-//TODO: Refactor createCanvas
-
 export class FaceDescriptorService {
   async getFaceDescriptor(imagePath: string): Promise<Float32Array | null> {
     try {

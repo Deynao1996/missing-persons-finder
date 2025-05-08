@@ -6,15 +6,15 @@ import { NameVariantService } from '../../name-matching/name-variants.service'
 import { NameMatcherService } from '../../name-matching/name-matcher.service'
 import path from 'path'
 import fs from 'fs'
-import { ImageProcessorService } from '../image-processor.service'
 import { FaceDescriptorService } from '../../face-detection/face-descriptor.service'
 import { ManifestService } from '../manifest.service'
+import { WebImageProcessorService } from '../../image-processor/web-processor.service'
 
 export class UnityWorkerStrategy {
   private proxyService = new ProxyService()
   private nameVariantsService = new NameVariantService()
   private nameMatcherService = new NameMatcherService()
-  private imageProcessor = new ImageProcessorService()
+  private imageProcessor = new WebImageProcessorService()
   private faceDescriptorService = new FaceDescriptorService()
   private manifestService = new ManifestService()
 

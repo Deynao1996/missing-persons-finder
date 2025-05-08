@@ -3,7 +3,7 @@ import { Page } from 'puppeteer'
 import sharp from 'sharp'
 import { ExtractedImage } from './types'
 
-export class ImageProcessorService {
+export class WebImageProcessorService {
   async downloadAndProcessImage(
     url: string,
     outputPath: string,

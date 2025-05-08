@@ -7,14 +7,14 @@ export class FaceMatchesService {
     inputDescriptor: Float32Array,
     images: {
       filepath: string
-      route: string
+      meta: string
       sourceImageUrl: string
     }[],
     minSimilarity: number,
   ): Promise<Array<FaceMatcherResult>> {
     const matches: Array<FaceMatcherResult> = []
 
-    for (const { filepath, route, sourceImageUrl } of images) {
+    for (const { filepath, meta, sourceImageUrl } of images) {
       try {
         const img = await canvas.loadImage(filepath)
         const detections = await faceapi
@@ -29,7 +29,7 @@ export class FaceMatchesService {
             matches.push({
               similarity,
               position: det.detection.box,
-              route,
+              meta,
               sourceImageUrl,
             })
           }

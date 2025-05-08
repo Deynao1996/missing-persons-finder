@@ -65,3 +65,9 @@ export interface ExtractedImage {
   height: number
   alt: string
 }
+
+export interface TelegramMatch {
+  text: string
+  date: string
+  link: string
+}

@@ -49,7 +49,7 @@ export const startSearchingByImage = async (req: Request, res: Response, next: N
     const imagesForSearch = scrapedImages.map((img) => {
       return {
         filepath: img.filepath,
-        route: img.url,
+        meta: img.url,
         sourceImageUrl: img.imageUrl,
       }
     })
