@@ -57,3 +57,11 @@ export interface FaceMatcherResult {
   meta: string
   sourceImageUrl: string
 }
+
+export interface TelegramSearchConfig {
+  maxImages: number
+  batchSize: number
+  channelUsername: string
+  minDate: Date
+  delayMs: number
+}

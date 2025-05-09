@@ -12,7 +12,7 @@ import { ProxyService } from '../../network/proxy.service'
 import { NameVariantService } from '../../name-matching/name-variants.service'
 import { NameMatcherService } from '../../name-matching/name-matcher.service'
 import { WebImageProcessorService } from '../../image-processor/web-processor.service'
-import { WEB_MAX_IMAGES } from '../../../constants'
+import { MIN_SIMILARITY, WEB_MAX_IMAGES } from '../../../constants'
 import { FaceMatchesService } from '../../face-detection/face-matches.service'
 
 export class WebWorkerStrategy {
@@ -127,7 +127,7 @@ export class WebWorkerStrategy {
 
     while (scrapedSoFar < WEB_MAX_IMAGES && routeIndex < site.routes.length) {
       const imagesForSearch = await this.webImageProcessorService.scrapeImagesFromRoute(site, routeIndex)
-      const matches = await this.faceMatchesService.findFaceMatches(inputDescriptor, imagesForSearch, 0.4)
+      const matches = await this.faceMatchesService.findFaceMatches(inputDescriptor, imagesForSearch, MIN_SIMILARITY)
       siteMatches.push(...matches)
 
       scrapedSoFar += imagesForSearch.length

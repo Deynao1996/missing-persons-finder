@@ -6,3 +6,4 @@ export const FULLNAME_FOR_SEARCH = [
 export const TEMP_DIR = './temp_images'
 export const WEB_MAX_IMAGES = 300
 export const BATCH_SIZE = 20
+export const MIN_SIMILARITY = 0.39

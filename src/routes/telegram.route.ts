@@ -1,10 +1,10 @@
 import { Router } from 'express'
-import { startSearchingByImage, startSearchingByText } from '../controllers/telegram.controller'
+import { startSearchingFacesInTelegramImages, startSearchingByText } from '../controllers/telegram.controller'
 
 const router = Router()
 
 router.post('/', startSearchingByText)
 
-router.post('/by-image', startSearchingByImage)
+router.post('/by-image', startSearchingFacesInTelegramImages)
 
 export default router

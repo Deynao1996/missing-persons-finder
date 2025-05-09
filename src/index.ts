@@ -9,11 +9,9 @@ import telegramSearchEngineRoutes from './routes/telegram.route'
 import { handleErrors } from './middlewares/handle-errors.middleware'
 import { initFaceAPI } from './utils/face-api/init-face.util'
 
-//TODO: TODAY: Check multiple batches in one request for website for text
-//TODO: TODAY: Check multiple batches in one request for website for images
-
 //TODO: TODAY: Check multiple batches in one request for telegram for text
 //TODO: TODAY: Check multiple batches in one request for telegram for images
+
 //TODO: Check one request for search for text
 //TODO: Check one request for search for images
 

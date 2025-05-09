@@ -6,6 +6,7 @@ import { Api } from 'telegram'
 import { FaceDescriptorService } from '../face-detection/face-descriptor.service'
 import { TelegramImageProcessorService } from '../image-processor/telegram-processor.service'
 import { TEMP_DIR } from '../../constants'
+import { delay } from '../../utils/delay.util'
 
 export class TelegramScraperService extends TelegramClientService {
   private faceDescriptorService = new FaceDescriptorService()
@@ -14,50 +15,60 @@ export class TelegramScraperService extends TelegramClientService {
     super()
   }
 
-  async searchMessagesInChannel(channelUsername: string, query: string, minDate?: Date): Promise<TelegramMatch[]> {
+  async searchMessagesInChannel(
+    channelUsername: string,
+    query: string,
+    minDate?: Date,
+    maxMessages: number = 500,
+    delayMs: number = 500,
+  ): Promise<TelegramMatch[]> {
     await this.connect()
 
-    try {
-      const channel = await this.client.getEntity(channelUsername)
-      const messages: TelegramMatch[] = []
+    const channel = await this.client.getEntity(channelUsername)
+    const messages: TelegramMatch[] = []
 
-      let offsetId = 0
-      let keepFetching = true
+    let offsetId = 0
+    let fetched = 0
+    let keepFetching = true
 
-      while (keepFetching) {
-        const result = await this.client.getMessages(channel, {
-          limit: 100,
-          search: query,
-          offsetId,
-        })
+    while (keepFetching && fetched < maxMessages) {
+      const result = await this.client.getMessages(channel, {
+        limit: 100,
+        search: query,
+        offsetId,
+      })
 
-        if (!result || result.length === 0) break
+      if (!result || result.length === 0) break
 
-        for (const msg of result) {
-          const msgDate = new Date(msg.date * 1000)
-          if (minDate && msgDate < minDate) {
+      for (const msg of result) {
+        const msgDate = new Date(msg.date * 1000)
+        if (minDate && msgDate < minDate) {
+          keepFetching = false
+          break
+        }
+
+        if (msg.message) {
+          messages.push({
+            text: msg.message,
+            date: msgDate.toLocaleString('uk-UA'),
+            link: `https://t.me/${channelUsername}/${msg.id}`,
+          })
+          fetched++
+          if (fetched >= maxMessages) {
             keepFetching = false
             break
           }
-
-          if (msg.message) {
-            const formatted = msgDate.toLocaleString('uk-UA')
-            messages.push({
-              text: msg.message,
-              date: formatted,
-              link: `https://t.me/${channelUsername}/${msg.id}`,
-            })
-          }
         }
-
-        offsetId = result[result.length - 1].id
       }
 
-      return messages
-    } catch (err) {
-      console.error(`❌ Error searching in ${channelUsername}:`, err)
-      return []
+      const lastId = result[result.length - 1]?.id
+      if (!lastId || lastId === offsetId) break
+      offsetId = lastId
+
+      if (delayMs) await delay(delayMs)
     }
+
+    return messages
   }
 
   async fetchImageBatchFromTelegramChannel({

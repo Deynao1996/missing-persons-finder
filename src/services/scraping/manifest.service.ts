@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import { ScrapedImage } from './types'
+import { ScrapedImage } from '../image-processor/types'
 
 export class ManifestService {
   saveRouteManifest(routeSlug: string, images: ScrapedImage[], manifestsDir: string) {
