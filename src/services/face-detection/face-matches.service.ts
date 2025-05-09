@@ -1,6 +1,6 @@
 import * as canvas from 'canvas'
 import * as faceapi from 'face-api.js'
-import { FaceMatcherResult } from './types'
+import { FaceMatcherResult } from '../scraping/types'
 
 export class FaceMatchesService {
   async findFaceMatches(

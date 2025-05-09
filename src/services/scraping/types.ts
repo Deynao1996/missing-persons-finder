@@ -9,33 +9,6 @@ export interface SearchOptions {
   proxyRotate?: boolean
 }
 
-export interface ScrapedImage {
-  url: string
-  imageUrl: string
-  filepath: string
-  timestamp: string
-  route: string
-  metadata: {
-    width: number
-    height: number
-    altText: string
-  }
-}
-
-export interface ScrapeOptions {
-  outputDir?: string
-  maxImages?: number
-  batchSize?: number
-  minDimensions?: { width: number; height: number }
-  backgroundSelectors?: string[]
-}
-
-export interface ScrapLargeVolume {
-  baseUrl: string
-  options?: ScrapeOptions
-  routes: string[]
-}
-
 export interface WebsiteConfig {
   baseUrl: string
   routes: string[]
@@ -70,4 +43,17 @@ export interface TelegramMatch {
   text: string
   date: string
   link: string
+}
+
+export interface WebsiteForSearch {
+  baseUrl: string
+  routes: string[]
+  backgroundSelectors?: string[]
+}
+
+export interface FaceMatcherResult {
+  similarity: number
+  position: { x: number; y: number; width: number; height: number }
+  meta: string
+  sourceImageUrl: string
 }

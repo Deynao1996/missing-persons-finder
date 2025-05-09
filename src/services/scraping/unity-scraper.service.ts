@@ -1,73 +1,14 @@
 import puppeteer from 'puppeteer'
-import { BulkAcrossWebsites, BulkSearchResult, ScrapLargeVolume, ScrapedImage } from './types'
-import { autoScroll } from '../../utils/puppeteer/auto-scroll.util'
-import path from 'path'
-import fs from 'fs'
+import { BulkAcrossWebsites, BulkSearchResult, FaceMatcherResult } from './types'
 import { ProxyService } from '../network/proxy.service'
-import { UnityWorkerStrategy } from './strategies/unity-worker.strategy'
-import { WebImageProcessorService } from '../image-processor/web-processor.service'
+import { WebWorkerStrategy } from './strategies/web-worker.strategy'
+import { FaceDescriptorService } from '../face-detection/face-descriptor.service'
+import { SEARCHING_WEBSITES } from '../../constants'
 
 export class UnityScraperService {
-  private imageProcessor = new WebImageProcessorService()
   private proxyService = new ProxyService()
-  private workerStrategy = new UnityWorkerStrategy()
-
-  async scrapeLargeImageVolumeFromUnity({ baseUrl, options = {}, routes }: ScrapLargeVolume): Promise<ScrapedImage[]> {
-    // Configure directories
-    const outputDir = options.outputDir || './scraped_data'
-    const rawDir = path.join(outputDir, 'raw_images')
-    const manifestsDir = path.join(outputDir, 'manifests')
-
-    ;[outputDir, rawDir, manifestsDir].forEach((dir) => {
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
-    })
-
-    const browser = await puppeteer.launch({
-      headless: false,
-      args: ['--disable-dev-shm-usage'], // Critical for large volumes
-    })
-
-    const allResults: ScrapedImage[] = []
-
-    for (const route of routes) {
-      const routeSlug = route.replace(/\W+/g, '_').slice(0, 30)
-      const routeDir = path.join(rawDir, routeSlug)
-      if (!fs.existsSync(routeDir)) fs.mkdirSync(routeDir)
-
-      const page = await browser.newPage()
-      await page.goto(`${baseUrl}${route}`, {
-        waitUntil: 'networkidle2',
-        timeout: 30000,
-      })
-
-      // Scroll to load lazy images
-      await autoScroll(page)
-
-      // Extract image elements with metadata
-      const combinedImages = await this.imageProcessor.extractImagesFromPage(page, options.backgroundSelectors)
-      const validImages = await this.imageProcessor.getValidImages(combinedImages, options)
-
-      // Process in batches (avoid memory overload)
-      for (let i = 0; i < validImages.length; i += options.batchSize || 10) {
-        const batch = validImages.slice(i, i + (options.batchSize || 10))
-        const batchResults = await this.workerStrategy.processImageBatch(
-          batch,
-          baseUrl,
-          route,
-          routeDir,
-          routeSlug,
-          manifestsDir,
-          i,
-        )
-        allResults.push(...batchResults)
-      }
-
-      await page.close()
-    }
-
-    await browser.close()
-    return allResults
-  }
+  private workerStrategy = new WebWorkerStrategy()
+  private faceDescriptorService = new FaceDescriptorService()
 
   async bulkTextSearchAcrossWebsites({
     names,
@@ -104,5 +45,21 @@ export class UnityScraperService {
 
     await browser.close()
     return results
+  }
+
+  async performImageSearch(imagePath: string): Promise<FaceMatcherResult[]> {
+    if (!imagePath) throw new Error('No image path provided')
+
+    const inputDescriptor = await this.faceDescriptorService.getFaceDescriptor(imagePath)
+    if (!inputDescriptor) throw new Error('No face detected in uploaded image')
+
+    const allMatches: FaceMatcherResult[] = []
+
+    for (const site of SEARCHING_WEBSITES) {
+      const siteMatches = await this.workerStrategy.searchSite(site, inputDescriptor)
+      allMatches.push(...siteMatches)
+    }
+
+    return allMatches
   }
 }

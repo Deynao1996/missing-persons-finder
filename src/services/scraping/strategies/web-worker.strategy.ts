@@ -1,22 +1,26 @@
 import { Browser, Page } from 'puppeteer'
-import { BulkSearchResult, ExtractedImage, ScrapedImage, SearchedNames, SearchOptions, WebsiteConfig } from '../types'
+import {
+  BulkSearchResult,
+  FaceMatcherResult,
+  SearchedNames,
+  SearchOptions,
+  WebsiteConfig,
+  WebsiteForSearch,
+} from '../types'
 import { delay } from '../../../utils/delay.util'
 import { ProxyService } from '../../network/proxy.service'
 import { NameVariantService } from '../../name-matching/name-variants.service'
 import { NameMatcherService } from '../../name-matching/name-matcher.service'
-import path from 'path'
-import fs from 'fs'
-import { FaceDescriptorService } from '../../face-detection/face-descriptor.service'
-import { ManifestService } from '../manifest.service'
 import { WebImageProcessorService } from '../../image-processor/web-processor.service'
+import { WEB_MAX_IMAGES } from '../../../constants'
+import { FaceMatchesService } from '../../face-detection/face-matches.service'
 
-export class UnityWorkerStrategy {
+export class WebWorkerStrategy {
   private proxyService = new ProxyService()
   private nameVariantsService = new NameVariantService()
   private nameMatcherService = new NameMatcherService()
-  private imageProcessor = new WebImageProcessorService()
-  private faceDescriptorService = new FaceDescriptorService()
-  private manifestService = new ManifestService()
+  private faceMatchesService = new FaceMatchesService()
+  private webImageProcessorService = new WebImageProcessorService()
 
   async runWorker(
     workerId: number,
@@ -116,53 +120,20 @@ export class UnityWorkerStrategy {
     }
   }
 
-  async processImageBatch(
-    batch: ExtractedImage[],
-    baseUrl: string,
-    route: string,
-    routeDir: string,
-    routeSlug: string,
-    manifestsDir: string,
-    startIndex: number,
-  ): Promise<ScrapedImage[]> {
-    const results: ScrapedImage[] = []
+  async searchSite(site: WebsiteForSearch, inputDescriptor: any): Promise<FaceMatcherResult[]> {
+    const siteMatches: FaceMatcherResult[] = []
+    let scrapedSoFar = 0
+    let routeIndex = 0
 
-    await Promise.all(
-      batch.map(async (img, idx) => {
-        try {
-          const filename = `${Date.now()}_${startIndex + idx}.jpeg`
-          const filepath = path.join(routeDir, filename)
+    while (scrapedSoFar < WEB_MAX_IMAGES && routeIndex < site.routes.length) {
+      const imagesForSearch = await this.webImageProcessorService.scrapeImagesFromRoute(site, routeIndex)
+      const matches = await this.faceMatchesService.findFaceMatches(inputDescriptor, imagesForSearch, 0.4)
+      siteMatches.push(...matches)
 
-          await this.imageProcessor.downloadAndProcessImage(img.src, filepath, { targetFormat: 'jpeg' })
+      scrapedSoFar += imagesForSearch.length
+      routeIndex++
+    }
 
-          const descriptor = await this.faceDescriptorService.getFaceDescriptor(filepath)
-
-          if (!descriptor) {
-            await fs.promises.unlink(filepath)
-            console.log(`No face found in ${img.src}, skipping.`)
-            return
-          }
-
-          results.push({
-            url: `${baseUrl}${route}`,
-            imageUrl: img.src,
-            filepath,
-            timestamp: new Date().toISOString(),
-            route,
-            metadata: {
-              width: img.width,
-              height: img.height,
-              altText: img.alt,
-            },
-          })
-        } catch (error) {
-          console.error(`Failed image ${img.src}:`, error)
-        }
-      }),
-    )
-
-    this.manifestService.saveRouteManifest(routeSlug, results, manifestsDir)
-    await delay(1000 + Math.random() * 2000) // Throttle
-    return results
+    return siteMatches
   }
 }
