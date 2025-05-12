@@ -6,14 +6,14 @@ import yandexSearchEngineRoutes from './routes/yandex.route'
 import unitySearchEngineRoutes from './routes/unity.route'
 import googleSearchEngineRoutes from './routes/google.route'
 import telegramSearchEngineRoutes from './routes/telegram.route'
+import combineSearchEngineRoutes from './routes/combined-search.route'
 import { handleErrors } from './middlewares/handle-errors.middleware'
 import { initFaceAPI } from './utils/face-api/init-face.util'
 
-//TODO: TODAY: Check multiple batches in one request for telegram for text
-//TODO: TODAY: Check multiple batches in one request for telegram for images
-
 //TODO: Check one request for search for text
 //TODO: Check one request for search for images
+//TODO: Check save descriptor for not save the same images
+//TODO: Apply telegram bot interface
 
 dotenv.config()
 const PORT = process.env.PORT || 5000
@@ -26,6 +26,7 @@ app.use('/api/yandex-search', yandexSearchEngineRoutes)
 app.use('/api/google-search', googleSearchEngineRoutes)
 app.use('/api/unity-search', unitySearchEngineRoutes)
 app.use('/api/telegram-search', telegramSearchEngineRoutes)
+app.use('/api/search', combineSearchEngineRoutes)
 
 app.use(handleErrors())
 

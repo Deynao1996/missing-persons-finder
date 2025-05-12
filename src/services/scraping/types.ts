@@ -1,7 +1,9 @@
-export interface SearchedNames {
+export interface SearchedName {
   firstName: string
   lastName: string
 }
+
+export type PartialSearchedName = Partial<SearchedName>
 
 export interface SearchOptions {
   maxConcurrent?: number
@@ -16,7 +18,7 @@ export interface WebsiteConfig {
 }
 
 export interface BulkAcrossWebsites {
-  names: SearchedNames[]
+  name: PartialSearchedName
   websites: WebsiteConfig[]
   options: SearchOptions
 }
@@ -39,9 +41,9 @@ export interface ExtractedImage {
   alt: string
 }
 
-export interface TelegramMatch {
+export interface TextMatchResult {
   text: string
-  date: string
+  date?: string
   link: string
 }
 

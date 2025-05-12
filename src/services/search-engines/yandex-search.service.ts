@@ -1,11 +1,11 @@
 import puppeteer, { Browser, Page } from 'puppeteer'
-import { YandexHelpersStrategy } from './stratagies/yandex-helpers.strategy'
+import { YandexConfigHelper } from './helpers/yandex-config.helper'
 
 export class YandexSearchService {
-  private strategy: YandexHelpersStrategy
+  private strategy: YandexConfigHelper
 
   constructor() {
-    this.strategy = new YandexHelpersStrategy()
+    this.strategy = new YandexConfigHelper()
   }
 
   async searchImageOnYandex(imagePath: string): Promise<string[] | null> {

@@ -2,10 +2,10 @@ import { WebsiteForSearch } from '../services/scraping/types'
 
 const UNITY_STRENGTH_ROUTES = [
   '/',
-  '/gumanitarna-dopomoga-lyudyam-zi-skrutnym-zhyttyevym-stanovyshhem/',
-  '/emergency-response-team/',
-  '/evakuacziya-z-deokupovanyh-terytorij-abo-tyh-shho-znahodyatsya-v-zoni-bojovyh-dij/',
-  '/generatory-zarady-vyzhyvannya-ta-vidnovlennya/',
+  // '/gumanitarna-dopomoga-lyudyam-zi-skrutnym-zhyttyevym-stanovyshhem/',
+  // '/emergency-response-team/',
+  // '/evakuacziya-z-deokupovanyh-terytorij-abo-tyh-shho-znahodyatsya-v-zoni-bojovyh-dij/',
+  // '/generatory-zarady-vyzhyvannya-ta-vidnovlennya/',
   // '/dystrybutsiia/',
   // '/ostrivecz-dytynstva-rozvytok-ditej-v-pryfrontovyh-terytoriyah/',
   // '/kutochky-zhyttya-v-harkivskij-oblasti-punkty-obigrivu/',
@@ -15,7 +15,7 @@ const UNITY_STRENGTH_ROUTES = [
   // '/statutni-dokumenty/',
   // '/pro-nas/',
   // '/zbir-pozhertv/',
-  // '/kontakty/',
+  '/kontakty/',
 ]
 
 const UNITY_VERCEL_ROUTES = ['/faq', '/about']

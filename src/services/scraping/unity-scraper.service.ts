@@ -1,5 +1,5 @@
 import puppeteer from 'puppeteer'
-import { BulkAcrossWebsites, BulkSearchResult, FaceMatcherResult } from './types'
+import { BulkAcrossWebsites, FaceMatcherResult, SearchedName, TextMatchResult } from './types'
 import { ProxyService } from '../network/proxy.service'
 import { WebWorkerStrategy } from './strategies/web-worker.strategy'
 import { FaceDescriptorService } from '../face-detection/face-descriptor.service'
@@ -10,15 +10,10 @@ export class UnityScraperService {
   private workerStrategy = new WebWorkerStrategy()
   private faceDescriptorService = new FaceDescriptorService()
 
-  async bulkTextSearchAcrossWebsites({
-    names,
-    websites,
-    options = {},
-  }: BulkAcrossWebsites): Promise<BulkSearchResult[]> {
-    const results: BulkSearchResult[] = names.map((name) => ({
-      name: `${name.firstName} ${name.lastName}`,
-      results: [],
-    }))
+  async bulkTextSearchAcrossWebsites({ name, websites, options = {} }: BulkAcrossWebsites): Promise<TextMatchResult[]> {
+    const results: TextMatchResult[] = []
+
+    if (!name.firstName && !name.lastName) throw new Error('No name provided')
 
     const browser = await puppeteer.launch({
       headless: false,
@@ -35,7 +30,7 @@ export class UnityScraperService {
       workerPool.map((_, workerId) =>
         this.workerStrategy.runWorker(workerId, {
           browser,
-          names,
+          name,
           websites,
           results,
           options,

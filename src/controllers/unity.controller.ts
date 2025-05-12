@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express'
-import { FULLNAME_FOR_SEARCH, SEARCHING_WEBSITES, TEMP_DIR } from '../constants'
+import { SEARCHING_WEBSITES, TEMP_DIR } from '../constants'
 import { UnityScraperService } from '../services/scraping/unity-scraper.service'
 import { deleteTempFolder } from '../utils/delete-temp.util'
 
@@ -8,7 +8,10 @@ const scraperService = new UnityScraperService()
 export const startSearchingByText = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const result = await scraperService.bulkTextSearchAcrossWebsites({
-      names: FULLNAME_FOR_SEARCH,
+      name: {
+        firstName: '',
+        lastName: '',
+      },
       websites: SEARCHING_WEBSITES,
       options: {
         maxConcurrent: 3,

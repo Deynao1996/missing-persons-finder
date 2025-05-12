@@ -1,4 +1,4 @@
-import { TelegramMatch } from './types'
+import { PartialSearchedName, TextMatchResult } from './types'
 import { TelegramClientService } from '../client/telegram-client.service'
 import path from 'path'
 import fs from 'fs'
@@ -7,65 +7,78 @@ import { FaceDescriptorService } from '../face-detection/face-descriptor.service
 import { TelegramImageProcessorService } from '../image-processor/telegram-processor.service'
 import { TEMP_DIR } from '../../constants'
 import { delay } from '../../utils/delay.util'
+import { NameVariantService } from '../name-matching/name-variants.service'
 
 export class TelegramScraperService extends TelegramClientService {
   private faceDescriptorService = new FaceDescriptorService()
   private telegramImageProcessorService = new TelegramImageProcessorService()
+  private nameVariantService = new NameVariantService()
   constructor() {
     super()
   }
 
   async searchMessagesInChannel(
     channelUsername: string,
-    query: string,
+    { firstName, lastName }: PartialSearchedName,
     minDate?: Date,
     maxMessages: number = 500,
     delayMs: number = 500,
-  ): Promise<TelegramMatch[]> {
+  ): Promise<TextMatchResult[]> {
     await this.connect()
-
     const channel = await this.client.getEntity(channelUsername)
-    const messages: TelegramMatch[] = []
+    const messages: TextMatchResult[] = []
+    const seenMessageIds = new Set<number>()
 
-    let offsetId = 0
-    let fetched = 0
-    let keepFetching = true
+    // Parse the query and generate name variants
+    const nameVariants = this.nameVariantService.generateUkrainianNameVariants(firstName, lastName)
 
-    while (keepFetching && fetched < maxMessages) {
-      const result = await this.client.getMessages(channel, {
-        limit: 100,
-        search: query,
-        offsetId,
-      })
+    let totalFetched = 0
 
-      if (!result || result.length === 0) break
+    for (const variant of nameVariants) {
+      let offsetId = 0
+      let fetched = 0
+      let keepFetching = true
 
-      for (const msg of result) {
-        const msgDate = new Date(msg.date * 1000)
-        if (minDate && msgDate < minDate) {
-          keepFetching = false
-          break
-        }
+      while (keepFetching && totalFetched < maxMessages) {
+        const result = await this.client.getMessages(channel, {
+          limit: 100,
+          search: variant,
+          offsetId,
+        })
 
-        if (msg.message) {
-          messages.push({
-            text: msg.message,
-            date: msgDate.toLocaleString('uk-UA'),
-            link: `https://t.me/${channelUsername}/${msg.id}`,
-          })
-          fetched++
-          if (fetched >= maxMessages) {
+        if (!result || result.length === 0) break
+
+        for (const msg of result) {
+          const msgDate = new Date(msg.date * 1000)
+          if (minDate && msgDate < minDate) {
             keepFetching = false
             break
           }
+
+          if (msg.message && !seenMessageIds.has(msg.id)) {
+            messages.push({
+              text: msg.message,
+              date: msgDate.toLocaleString('uk-UA'),
+              link: `https://t.me/${channelUsername}/${msg.id}`,
+            })
+            seenMessageIds.add(msg.id)
+            fetched++
+            totalFetched++
+            if (totalFetched >= maxMessages) {
+              keepFetching = false
+              break
+            }
+          }
         }
+
+        const lastId = result[result.length - 1]?.id
+        if (!lastId || lastId === offsetId) break
+        offsetId = lastId
+
+        if (delayMs) await delay(delayMs)
       }
 
-      const lastId = result[result.length - 1]?.id
-      if (!lastId || lastId === offsetId) break
-      offsetId = lastId
-
-      if (delayMs) await delay(delayMs)
+      if (totalFetched >= maxMessages) break
     }
 
     return messages

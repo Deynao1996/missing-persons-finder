@@ -1,9 +1,9 @@
 import { Browser, Page } from 'puppeteer'
 import {
-  BulkSearchResult,
   FaceMatcherResult,
-  SearchedNames,
+  PartialSearchedName,
   SearchOptions,
+  TextMatchResult,
   WebsiteConfig,
   WebsiteForSearch,
 } from '../types'
@@ -12,7 +12,7 @@ import { ProxyService } from '../../network/proxy.service'
 import { NameVariantService } from '../../name-matching/name-variants.service'
 import { NameMatcherService } from '../../name-matching/name-matcher.service'
 import { WebImageProcessorService } from '../../image-processor/web-processor.service'
-import { MIN_SIMILARITY, WEB_MAX_IMAGES } from '../../../constants'
+import { MIN_SIMILARITY, MAX_IMAGES } from '../../../constants'
 import { FaceMatchesService } from '../../face-detection/face-matches.service'
 
 export class WebWorkerStrategy {
@@ -26,22 +26,22 @@ export class WebWorkerStrategy {
     workerId: number,
     {
       browser,
-      names,
+      name,
       websites,
       results,
       options,
     }: {
       browser: Browser
-      names: SearchedNames[]
+      name: PartialSearchedName
       websites: WebsiteConfig[]
-      results: BulkSearchResult[]
+      results: TextMatchResult[]
       options: SearchOptions
     },
   ): Promise<void> {
     for (let i = workerId; i < websites.length; i += options.maxConcurrent || 3) {
       const site = websites[i]
       for (const route of site.routes) {
-        await this.processRoute({ browser, site, route, names, results, options })
+        await this.processRoute({ browser, site, route, name, results, options })
       }
     }
   }
@@ -50,15 +50,15 @@ export class WebWorkerStrategy {
     browser,
     site,
     route,
-    names,
+    name,
     results,
     options,
   }: {
     browser: Browser
     site: WebsiteConfig
     route: string
-    names: SearchedNames[]
-    results: BulkSearchResult[]
+    name: PartialSearchedName
+    results: TextMatchResult[]
     options: SearchOptions
   }): Promise<void> {
     const page = await browser.newPage()
@@ -82,9 +82,7 @@ export class WebWorkerStrategy {
         ])
       }
 
-      for (const name of names) {
-        await this.checkNameMatchOnPage({ page, name, site, url, results })
-      }
+      await this.checkNameMatchOnPage({ page, name, site, url, results })
     } catch (error) {
       console.error(`Error searching ${url}:`, error)
     } finally {
@@ -101,21 +99,18 @@ export class WebWorkerStrategy {
     results,
   }: {
     page: Page
-    name: SearchedNames
+    name: PartialSearchedName
     site: WebsiteConfig
     url: string
-    results: BulkSearchResult[]
+    results: TextMatchResult[]
   }): Promise<void> {
     const variants = this.nameVariantsService.generateUkrainianNameVariants(name.firstName, name.lastName)
     const found = await this.nameMatcherService.checkNameOnPage(page, variants, site.nameSelectors)
 
     if (found.matches.length > 0) {
-      const result = results.find((r) => r.name === `${name.firstName} ${name.lastName}`)
-      result?.results.push({
-        website: new URL(site.baseUrl).hostname,
-        url,
-        found: true,
-        ...found,
+      results.push({
+        link: url,
+        text: found.excerpt || '',
       })
     }
   }
@@ -125,7 +120,7 @@ export class WebWorkerStrategy {
     let scrapedSoFar = 0
     let routeIndex = 0
 
-    while (scrapedSoFar < WEB_MAX_IMAGES && routeIndex < site.routes.length) {
+    while (scrapedSoFar < MAX_IMAGES && routeIndex < site.routes.length) {
       const imagesForSearch = await this.webImageProcessorService.scrapeImagesFromRoute(site, routeIndex)
       const matches = await this.faceMatchesService.findFaceMatches(inputDescriptor, imagesForSearch, MIN_SIMILARITY)
       siteMatches.push(...matches)
