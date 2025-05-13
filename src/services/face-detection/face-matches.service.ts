@@ -1,24 +1,22 @@
 import * as canvas from 'canvas'
 import * as faceapi from 'face-api.js'
 import { FaceMatcherResult } from '../scraping/types'
+import { BatchedImage } from '../image-processor/types'
 
 export class FaceMatchesService {
   async findFaceMatches(
     inputDescriptor: Float32Array,
-    images: {
-      filepath: string
-      meta: string
-      sourceImageUrl: string
-    }[],
+    images: BatchedImage[],
     minSimilarity: number,
   ): Promise<Array<FaceMatcherResult>> {
     const matches: Array<FaceMatcherResult> = []
 
-    for (const { filepath, meta, sourceImageUrl } of images) {
+    for (const { imageBuffer, meta, sourceImageUrl } of images) {
       try {
-        const img = await canvas.loadImage(filepath)
+        const img = await canvas.loadImage(imageBuffer)
+
         const detections = await faceapi
-          .detectAllFaces(img as any) // `img` is a canvas.Image, which is acceptable
+          .detectAllFaces(img as any)
           .withFaceLandmarks()
           .withFaceDescriptors()
 
@@ -35,7 +33,7 @@ export class FaceMatchesService {
           }
         }
       } catch (error) {
-        console.error(`Error processing ${filepath}:`, error)
+        console.error(`Error processing buffer image from ${sourceImageUrl}:`, error)
       }
     }
 

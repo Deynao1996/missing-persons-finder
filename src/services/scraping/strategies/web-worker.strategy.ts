@@ -1,12 +1,4 @@
-import { Browser, Page } from 'puppeteer'
-import {
-  FaceMatcherResult,
-  PartialSearchedName,
-  SearchOptions,
-  TextMatchResult,
-  WebsiteConfig,
-  WebsiteForSearch,
-} from '../types'
+import { FaceMatcherResult, PageMatcherOptions, RouteOptions, WebsiteForSearch, WorkerOptions } from '../types'
 import { delay } from '../../../utils/delay.util'
 import { ProxyService } from '../../network/proxy.service'
 import { NameVariantService } from '../../name-matching/name-variants.service'
@@ -22,22 +14,7 @@ export class WebWorkerStrategy {
   private faceMatchesService = new FaceMatchesService()
   private webImageProcessorService = new WebImageProcessorService()
 
-  async runWorker(
-    workerId: number,
-    {
-      browser,
-      name,
-      websites,
-      results,
-      options,
-    }: {
-      browser: Browser
-      name: PartialSearchedName
-      websites: WebsiteConfig[]
-      results: TextMatchResult[]
-      options: SearchOptions
-    },
-  ): Promise<void> {
+  async runWorker(workerId: number, { browser, name, websites, results, options }: WorkerOptions): Promise<void> {
     for (let i = workerId; i < websites.length; i += options.maxConcurrent || 3) {
       const site = websites[i]
       for (const route of site.routes) {
@@ -46,21 +23,7 @@ export class WebWorkerStrategy {
     }
   }
 
-  private async processRoute({
-    browser,
-    site,
-    route,
-    name,
-    results,
-    options,
-  }: {
-    browser: Browser
-    site: WebsiteConfig
-    route: string
-    name: PartialSearchedName
-    results: TextMatchResult[]
-    options: SearchOptions
-  }): Promise<void> {
+  private async processRoute({ browser, site, route, name, results, options }: RouteOptions): Promise<void> {
     const page = await browser.newPage()
     const url = route.startsWith('http') ? route : `${site.baseUrl}${route}`
 
@@ -91,19 +54,7 @@ export class WebWorkerStrategy {
     }
   }
 
-  private async checkNameMatchOnPage({
-    page,
-    name,
-    site,
-    url,
-    results,
-  }: {
-    page: Page
-    name: PartialSearchedName
-    site: WebsiteConfig
-    url: string
-    results: TextMatchResult[]
-  }): Promise<void> {
+  private async checkNameMatchOnPage({ page, name, site, url, results }: PageMatcherOptions): Promise<void> {
     const variants = this.nameVariantsService.generateUkrainianNameVariants(name.firstName, name.lastName)
     const found = await this.nameMatcherService.checkNameOnPage(page, variants, site.nameSelectors)
 
@@ -121,7 +72,7 @@ export class WebWorkerStrategy {
     let routeIndex = 0
 
     while (scrapedSoFar < MAX_IMAGES && routeIndex < site.routes.length) {
-      const imagesForSearch = await this.webImageProcessorService.scrapeImagesFromRoute(site, routeIndex)
+      const imagesForSearch = await this.webImageProcessorService.scrapeImagesFromRouteInMemory(site, routeIndex)
       const matches = await this.faceMatchesService.findFaceMatches(inputDescriptor, imagesForSearch, MIN_SIMILARITY)
       siteMatches.push(...matches)
 

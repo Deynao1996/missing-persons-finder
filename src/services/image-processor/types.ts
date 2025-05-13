@@ -5,11 +5,17 @@ export interface ExtractedImage {
   alt: string
 }
 
+export interface BatchedImage {
+  imageBuffer: Buffer
+  meta: string
+  sourceImageUrl: string
+}
+
 export interface ScrapedImage {
   url: string
   imageUrl: string
-  filepath: string
   timestamp: string
+  buffer: Buffer
   route: string
   metadata: {
     width: number
@@ -30,4 +36,11 @@ export interface ScrapLargeVolume {
   baseUrl: string
   options?: ScrapeOptions
   routes: string[]
+}
+
+export interface ImageProcessOptions {
+  targetFormat?: 'jpeg' | 'webp'
+  quality?: number
+  width?: number
+  height?: number
 }

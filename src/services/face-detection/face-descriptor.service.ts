@@ -2,11 +2,10 @@ import * as canvas from 'canvas'
 import * as faceapi from 'face-api.js'
 
 export class FaceDescriptorService {
-  async getFaceDescriptor(imagePath: string): Promise<Float32Array | null> {
+  async getFaceDescriptor(input: Buffer | string): Promise<Float32Array | null> {
     try {
-      const img = await canvas.loadImage(imagePath)
+      const img = await canvas.loadImage(input)
 
-      // 4. Detect faces with proper typing
       const detection = await faceapi
         .detectSingleFace(img as any)
         .withFaceLandmarks()

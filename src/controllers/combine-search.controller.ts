@@ -7,13 +7,11 @@ import {
   SEARCH_TELEGRAM_FROM,
   SEARCHED_TELEGRAM_CHANNEL,
   SEARCHING_WEBSITES,
-  TEMP_DIR,
 } from '../constants'
 import { UnityScraperService } from '../services/scraping/unity-scraper.service'
 import { FaceDescriptorService } from '../services/face-detection/face-descriptor.service'
 import { FaceMatchesService } from '../services/face-detection/face-matches.service'
 import { delay } from '../utils/delay.util'
-import { deleteTempFolder } from '../utils/delete-temp.util'
 import { TextMatchResult } from '../services/scraping/types'
 import { NameVariantService } from '../services/name-matching/name-variants.service'
 import { YandexSearchService } from '../services/search-engines/yandex-search.service'
@@ -27,6 +25,9 @@ const yandexSearchService = new YandexSearchService()
 
 export const handleCombinedSearch = async (req: Request, res: Response, next: NextFunction) => {
   const { query, imagePath, maxResults = 600 } = req.body
+
+  const effectiveMaxResults = maxResults ?? Infinity
+  const effectiveMaxImages = MAX_IMAGES ?? Infinity
 
   const textResults: TextMatchResult[] = []
   const faceMatches: any[] = []
@@ -50,19 +51,19 @@ export const handleCombinedSearch = async (req: Request, res: Response, next: Ne
           lastName,
         },
         new Date(SEARCH_TELEGRAM_FROM),
-        maxResults,
+        effectiveMaxResults,
       )
 
       // Website search
-      const websiteTextResults = await scraperService.bulkTextSearchAcrossWebsites({
-        name: {
-          firstName,
-          lastName,
-        },
-        websites: SEARCHING_WEBSITES,
-        options: { maxConcurrent: 3, proxyRotate: true },
-      })
-      textResults.push(...telegramTextResults, ...websiteTextResults)
+      // const websiteTextResults = await scraperService.bulkTextSearchAcrossWebsites({
+      //   name: {
+      //     firstName,
+      //     lastName,
+      //   },
+      //   websites: SEARCHING_WEBSITES,
+      //   options: { maxConcurrent: 3, proxyRotate: true },
+      // })
+      textResults.push(...telegramTextResults)
     }
 
     // --- IMAGE SEARCH ---
@@ -74,41 +75,38 @@ export const handleCombinedSearch = async (req: Request, res: Response, next: Ne
       const websiteMatches = await scraperService.performImageSearch(imagePath)
 
       // Telegram image search
-      const allMatches = []
+      // const allMatches = []
       let offsetId = 0
       let fetchedSoFar = 0
 
-      while (fetchedSoFar < MAX_IMAGES) {
-        const imagesBatch = await telegramService.fetchImageBatchFromTelegramChannel({
-          channelUsername: SEARCHED_TELEGRAM_CHANNEL,
-          batchSize: BATCH_SIZE,
-          minDate: new Date(SEARCH_TELEGRAM_FROM),
-          offsetId,
-        })
+      // while (fetchedSoFar < effectiveMaxImages) {
+      //   const imagesBatch = await telegramService.fetchImageBatchFromTelegramChannel({
+      //     channelUsername: SEARCHED_TELEGRAM_CHANNEL,
+      //     batchSize: BATCH_SIZE,
+      //     minDate: new Date(SEARCH_TELEGRAM_FROM),
+      //     offsetId,
+      //   })
 
-        if (imagesBatch.length === 0) break
-        offsetId = parseInt(imagesBatch[imagesBatch.length - 1].meta)
-        const matches = await faceMatchesService.findFaceMatches(inputDescriptor, imagesBatch, MIN_SIMILARITY)
-        allMatches.push(...matches)
-        fetchedSoFar += imagesBatch.length
+      //   if (imagesBatch.length === 0) break
+      //   offsetId = parseInt(imagesBatch[imagesBatch.length - 1].meta)
+      //   const matches = await faceMatchesService.findFaceMatches(inputDescriptor, imagesBatch, MIN_SIMILARITY)
+      //   allMatches.push(...matches)
+      //   fetchedSoFar += imagesBatch.length
 
-        await delay(1000)
-      }
+      //   await delay(1000)
+      // }
 
-      faceMatches.push(...allMatches, ...websiteMatches)
+      faceMatches.push(...websiteMatches)
     }
 
     // --- YANDEX IMAGE SEARCH ---
-    const yandexMatches = await yandexSearchService.searchImageOnYandex(imagePath)
+    // const yandexMatches = await yandexSearchService.searchImageOnYandex(imagePath)
 
     res.json({
       textResults,
       faceMatches,
-      yandexMatches,
     })
   } catch (error) {
     next(error)
-  } finally {
-    await deleteTempFolder(TEMP_DIR)
   }
 }

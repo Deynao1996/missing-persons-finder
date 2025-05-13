@@ -1,68 +1,16 @@
-import path from 'path'
 import puppeteer, { Page } from 'puppeteer'
-import sharp from 'sharp'
-import { ExtractedImage, ScrapedImage, ScrapLargeVolume } from './types'
+import { BatchedImage, ExtractedImage, ScrapedImage, ScrapLargeVolume } from './types'
 import { FaceDescriptorService } from '../face-detection/face-descriptor.service'
-import { ManifestService } from '../scraping/manifest.service'
-import fs from 'fs'
 import { delay } from '../../utils/delay.util'
 import { autoScroll } from '../../utils/puppeteer/auto-scroll.util'
 import { WebsiteForSearch } from '../scraping/types'
-import { BATCH_SIZE, TEMP_DIR } from '../../constants'
+import { BATCH_SIZE } from '../../constants'
+import { ImageProcessorService } from './image-processor.service'
+import { downloadImageBuffer } from '../../utils/download-image-buffer.util'
 
 export class WebImageProcessorService {
   private faceDescriptorService = new FaceDescriptorService()
-  private manifestService = new ManifestService()
-
-  async downloadAndProcessImage(
-    url: string,
-    outputPath: string,
-    options: {
-      targetFormat?: 'webp' | 'jpeg'
-      quality?: number
-      width?: number
-      height?: number
-    } = {},
-  ): Promise<{ processedPath: string; originalFormat: string }> {
-    try {
-      // 1. Download the image
-      const response = await fetch(url)
-      if (!response.ok) throw new Error(`Failed to fetch: ${response.status}`)
-      const buffer = await response.arrayBuffer()
-
-      // 2. Determine original format
-      const image = sharp(Buffer.from(buffer))
-      const metadata = await image.metadata()
-      const originalFormat = metadata.format || 'jpeg'
-      const outputFormat = options.targetFormat || originalFormat
-
-      // 3. Process with sharp
-      const sharpInstance = sharp(Buffer.from(buffer)).resize(options.width || 800, options.height || 800, {
-        fit: 'inside',
-        withoutEnlargement: true,
-      })
-
-      // 4. Convert if needed and save
-      let processedPath = outputPath
-      if (path.extname(outputPath) !== `.${outputFormat}`) {
-        processedPath = outputPath.replace(/\.[^.]+$/, `.${outputFormat}`)
-      }
-
-      await (
-        outputFormat === 'webp'
-          ? sharpInstance.webp({ quality: options.quality || 85 })
-          : sharpInstance.jpeg({ quality: options.quality || 90 })
-      ).toFile(processedPath)
-
-      return {
-        processedPath,
-        originalFormat,
-      }
-    } catch (error) {
-      console.error(`Error processing ${url}:`, error)
-      throw error
-    }
-  }
+  private imageProcessor = new ImageProcessorService()
 
   async extractImagesFromPage(page: Page, backgroundSelectors?: string[]) {
     const imageElements = await page.$$eval('img', (imgs) =>
@@ -114,37 +62,34 @@ export class WebImageProcessorService {
       .slice(0, options.maxImages || 100)
   }
 
-  async processImageBatch(
-    batch: ExtractedImage[],
-    baseUrl: string,
-    route: string,
-    routeDir: string,
-    routeSlug: string,
-    manifestsDir: string,
-    startIndex: number,
-  ): Promise<ScrapedImage[]> {
+  async processImageBatchInMemory(batch: ExtractedImage[], baseUrl: string, route: string): Promise<ScrapedImage[]> {
     const results: ScrapedImage[] = []
 
     await Promise.all(
-      batch.map(async (img, idx) => {
+      batch.map(async (img) => {
         try {
-          const filename = `${Date.now()}_${startIndex + idx}.jpeg`
-          const filepath = path.join(routeDir, filename)
+          const imageBuffer = await downloadImageBuffer(img.src)
 
-          await this.downloadAndProcessImage(img.src, filepath, { targetFormat: 'jpeg' })
+          // Process the image using your sharp-based utility
+          const processedBuffer = await this.imageProcessor.processImageBuffer(imageBuffer, {
+            targetFormat: 'jpeg',
+            quality: 85,
+            width: 800,
+            height: 800,
+          })
 
-          const descriptor = await this.faceDescriptorService.getFaceDescriptor(filepath)
+          // Try to extract face descriptor
+          const descriptor = await this.faceDescriptorService.getFaceDescriptor(processedBuffer)
 
           if (!descriptor) {
-            await fs.promises.unlink(filepath)
-            console.log(`No face found in ${img.src}, skipping.`)
+            console.log(`❌ No face detected in image ${img.src}, skipping.`)
             return
           }
 
           results.push({
             url: `${baseUrl}${route}`,
             imageUrl: img.src,
-            filepath,
+            buffer: processedBuffer,
             timestamp: new Date().toISOString(),
             route,
             metadata: {
@@ -153,56 +98,42 @@ export class WebImageProcessorService {
               altText: img.alt,
             },
           })
-        } catch (error) {
-          console.error(`Failed image ${img.src}:`, error)
+        } catch (err) {
+          console.warn(`⚠️ Failed to process ${img.src}:`, err)
         }
       }),
     )
-
-    this.manifestService.saveRouteManifest(routeSlug, results, manifestsDir)
-    await delay(1000 + Math.random() * 2000) // Throttle
+    await delay(1000 + Math.random() * 2000)
     return results
   }
 
-  async scrapeLargeImageVolumeFromUnity({ baseUrl, options = {}, routes }: ScrapLargeVolume): Promise<ScrapedImage[]> {
-    // Configure directories
-    const outputDir = options.outputDir || './scraped_data'
-    const rawDir = path.join(outputDir, 'raw_images')
-    const manifestsDir = path.join(outputDir, 'manifests')
-
-    ;[outputDir, rawDir, manifestsDir].forEach((dir) => {
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
-    })
-
+  async scrapeLargeImageVolumeFromUnityInMemory({
+    baseUrl,
+    routes,
+    options = {},
+  }: ScrapLargeVolume): Promise<Array<ScrapedImage>> {
     const browser = await puppeteer.launch({
       headless: false,
-      args: ['--disable-dev-shm-usage'], // Critical for large volumes
+      args: ['--disable-dev-shm-usage'],
     })
 
-    const allResults: ScrapedImage[] = []
+    const allResults = []
 
     for (const route of routes) {
-      const routeSlug = route.replace(/\W+/g, '_').slice(0, 30)
-      const routeDir = path.join(rawDir, routeSlug)
-      if (!fs.existsSync(routeDir)) fs.mkdirSync(routeDir)
-
       const page = await browser.newPage()
       await page.goto(`${baseUrl}${route}`, {
         waitUntil: 'networkidle2',
         timeout: 30000,
       })
 
-      // Scroll to load lazy images
       await autoScroll(page)
 
-      // Extract image elements with metadata
       const combinedImages = await this.extractImagesFromPage(page, options.backgroundSelectors)
       const validImages = await this.getValidImages(combinedImages, options)
 
-      // Process in batches (avoid memory overload)
       for (let i = 0; i < validImages.length; i += options.batchSize || 10) {
         const batch = validImages.slice(i, i + (options.batchSize || 10))
-        const batchResults = await this.processImageBatch(batch, baseUrl, route, routeDir, routeSlug, manifestsDir, i)
+        const batchResults = await this.processImageBatchInMemory(batch, baseUrl, route)
         allResults.push(...batchResults)
       }
 
@@ -213,23 +144,22 @@ export class WebImageProcessorService {
     return allResults
   }
 
-  async scrapeImagesFromRoute(site: WebsiteForSearch, routeIndex: number) {
+  async scrapeImagesFromRouteInMemory(site: WebsiteForSearch, routeIndex: number): Promise<BatchedImage[]> {
     const scrapeOptions = {
-      outputDir: TEMP_DIR,
       maxImages: BATCH_SIZE,
       batchSize: 5,
       minDimensions: { width: 150, height: 150 },
       backgroundSelectors: site.backgroundSelectors,
     }
 
-    const images = await this.scrapeLargeImageVolumeFromUnity({
+    const scrapedImages = await this.scrapeLargeImageVolumeFromUnityInMemory({
       baseUrl: site.baseUrl,
       routes: [site.routes[routeIndex]],
       options: scrapeOptions,
     })
 
-    return images.map((img) => ({
-      filepath: img.filepath,
+    return scrapedImages.map((img) => ({
+      imageBuffer: img.buffer,
       meta: img.url,
       sourceImageUrl: img.imageUrl,
     }))
