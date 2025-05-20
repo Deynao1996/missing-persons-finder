@@ -7,8 +7,13 @@ export interface ExtractedImage {
 
 export interface BatchedImage {
   imageBuffer: Buffer
-  meta: string
-  sourceImageUrl: string
+  meta: {
+    msgId: number
+    faceIndex: number
+    msgDate: Date
+    sourceImageUrl: string
+  }
+  descriptor: number[]
 }
 
 export interface ScrapedImage {

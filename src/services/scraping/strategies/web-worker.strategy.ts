@@ -73,10 +73,14 @@ export class WebWorkerStrategy {
 
     while (scrapedSoFar < MAX_IMAGES && routeIndex < site.routes.length) {
       const imagesForSearch = await this.webImageProcessorService.scrapeImagesFromRouteInMemory(site, routeIndex)
-      const matches = await this.faceMatchesService.findFaceMatches(inputDescriptor, imagesForSearch, MIN_SIMILARITY)
+      //TODO: Fix matches for
+      // const matches = await this.faceMatchesService.findFaceMatches(inputDescriptor, imagesForSearch, MIN_SIMILARITY)
+      const matches = [{ similarity: 2, meta: 'string', sourceImageUrl: 'string' }]
+      if (!matches) return siteMatches
+
       siteMatches.push(...matches)
 
-      scrapedSoFar += imagesForSearch.length
+      // scrapedSoFar += imagesForSearch.length
       routeIndex++
     }
 

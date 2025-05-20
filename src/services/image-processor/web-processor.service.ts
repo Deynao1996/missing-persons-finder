@@ -144,7 +144,7 @@ export class WebImageProcessorService {
     return allResults
   }
 
-  async scrapeImagesFromRouteInMemory(site: WebsiteForSearch, routeIndex: number): Promise<BatchedImage[]> {
+  async scrapeImagesFromRouteInMemory(site: WebsiteForSearch, routeIndex: number): Promise<BatchedImage[] | null> {
     const scrapeOptions = {
       maxImages: BATCH_SIZE,
       batchSize: 5,
@@ -158,10 +158,12 @@ export class WebImageProcessorService {
       options: scrapeOptions,
     })
 
-    return scrapedImages.map((img) => ({
-      imageBuffer: img.buffer,
-      meta: img.url,
-      sourceImageUrl: img.imageUrl,
-    }))
+    return null
+
+    // return scrapedImages.map((img) => ({
+    //   imageBuffer: img.buffer,
+    //   meta: img.url,
+    //   sourceImageUrl: img.imageUrl,
+    // }))
   }
 }

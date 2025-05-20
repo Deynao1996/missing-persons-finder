@@ -3,6 +3,7 @@ import { Browser, Page } from 'puppeteer'
 export interface SearchedName {
   firstName: string
   lastName: string
+  patronymic?: string
 }
 
 export type PartialSearchedName = Partial<SearchedName>
@@ -57,9 +58,9 @@ export interface WebsiteForSearch {
 
 export interface FaceMatcherResult {
   similarity: number
-  position: { x: number; y: number; width: number; height: number }
   meta: string
   sourceImageUrl: string
+  textMessage?: string
 }
 
 export interface TelegramSearchConfig {

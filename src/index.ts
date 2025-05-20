@@ -3,7 +3,8 @@ import cors from 'cors'
 import dotenv from 'dotenv'
 
 import googleSearchEngineRoutes from './routes/google.route'
-import combineSearchEngineRoutes from './routes/combined-search.route'
+import cacheChannelRoutes from './routes/cache.route'
+import telegramQueryRoutes from './routes/telegram-query.route'
 import { handleErrors } from './middlewares/handle-errors.middleware'
 import { initFaceAPI } from './utils/face-api/init-face.util'
 
@@ -15,7 +16,8 @@ app.use(cors())
 app.use(express.json())
 
 app.use('/api/google-search', googleSearchEngineRoutes)
-app.use('/api/search', combineSearchEngineRoutes)
+app.use('/api/cache-channel', cacheChannelRoutes)
+app.use('/api/telegram-query', telegramQueryRoutes)
 
 app.use(handleErrors())
 
