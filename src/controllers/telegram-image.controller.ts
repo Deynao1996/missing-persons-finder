@@ -1,38 +1,21 @@
 import { Request, Response, NextFunction } from 'express'
-import { FaceMatchesService } from '../services/face-detection/face-matches.service'
-import { FaceDescriptorService } from '../services/face-detection/face-descriptor.service'
-import { MIN_SIMILARITY } from '../constants'
-import { TelegramScraperService } from '../services/scraping/telegram-scrapper.service'
+import { TelegramFaceSearchService } from '../services/search/telegram/telegram-face-search.service'
 
-const faceMatches = new FaceMatchesService()
-const faceDescriptor = new FaceDescriptorService()
-const telegramScraper = new TelegramScraperService()
+const telegramFaceSearch = new TelegramFaceSearchService()
 
 export const startSearching = async (req: Request, res: Response, next: NextFunction) => {
-  const { imagePath, minYear } = req.body
-
-  if (!imagePath) {
-    return res.status(400).json({ error: 'Image path is required' })
-  }
-
   try {
-    const inputDescriptor = await faceDescriptor.getFaceDescriptor(imagePath)
-    if (!inputDescriptor) {
-      return res.status(400).json({ error: 'No face detected in uploaded image' })
-    }
+    const { imagePath, minYear } = req.body
 
-    const results = await faceMatches.findDescriptorMatchesAcrossAllChannels(
-      inputDescriptor,
-      MIN_SIMILARITY,
+    const { results, totalMatches } = await telegramFaceSearch.searchByImage(
+      imagePath,
       minYear ? parseInt(minYear, 10) : undefined,
     )
 
-    const enriched = await telegramScraper.enrichFaceMatchesWithTelegramMessages(results, telegramScraper)
+    // TODO: Remove for production
+    await telegramFaceSearch.temporaryMarkAsReviewed(results)
 
-    res.json({
-      results: enriched,
-      totalMatches: results.length,
-    })
+    res.json({ results, totalMatches })
   } catch (error) {
     next(error)
   }

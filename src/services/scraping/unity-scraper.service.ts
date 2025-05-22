@@ -1,5 +1,5 @@
 import puppeteer from 'puppeteer'
-import { BulkAcrossWebsites, FaceMatcherResult, SearchedName, TextMatchResult } from './types'
+import { BulkAcrossWebsites, FaceMatcherResult, SearchedName, TextMatchResult } from '../types'
 import { ProxyService } from '../network/proxy.service'
 import { WebWorkerStrategy } from './strategies/web-worker.strategy'
 import { FaceDescriptorService } from '../face-detection/face-descriptor.service'

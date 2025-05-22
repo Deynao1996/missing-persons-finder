@@ -20,3 +20,10 @@ export function parseTelegramLink(url: string): { channel: string; messageId: nu
   if (!match) return null
   return { channel: match[1], messageId: parseInt(match[2], 10) }
 }
+
+export function parseSearchQuery(query: string): string[] {
+  return query
+    .split('/')
+    .map((q) => q.trim())
+    .filter(Boolean)
+}

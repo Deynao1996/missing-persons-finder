@@ -1,12 +1,11 @@
 import puppeteer, { Page } from 'puppeteer'
-import { BatchedImage, ExtractedImage, ScrapedImage, ScrapLargeVolume } from './types'
 import { FaceDescriptorService } from '../face-detection/face-descriptor.service'
 import { delay } from '../../utils/delay.util'
 import { autoScroll } from '../../utils/puppeteer/auto-scroll.util'
-import { WebsiteForSearch } from '../scraping/types'
 import { BATCH_SIZE } from '../../constants'
 import { ImageProcessorService } from './image-processor.service'
 import { downloadImageBuffer } from '../../utils/download-image-buffer.util'
+import { BatchedImage, ExtractedImage, ScrapedImage, ScrapLargeVolume, WebsiteForSearch } from '../types'
 
 export class WebImageProcessorService {
   private faceDescriptorService = new FaceDescriptorService()

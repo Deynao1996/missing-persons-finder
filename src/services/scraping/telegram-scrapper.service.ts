@@ -1,12 +1,15 @@
-import { FaceMatcherResult, PartialSearchedName, TextMatchResult } from './types'
+import { FaceMatcherResult, PartialSearchedName, TextMatchResult } from '../types'
 import { TelegramClientService } from '../client/telegram-client.service'
 import { Api } from 'telegram'
 import { FaceDescriptorService } from '../face-detection/face-descriptor.service'
 import { delay } from '../../utils/delay.util'
 import { NameVariantService } from '../name-matching/name-variants.service'
 import { ImageProcessorService } from '../image-processor/image-processor.service'
-import { BatchedImage } from '../image-processor/types'
+import { BatchedImage } from '../types'
 import { parseTelegramLink } from '../../utils/extract.utils'
+import fs from 'fs/promises'
+import path from 'path'
+import { TELEGRAM_CACHE_DIR } from '../../constants'
 
 export class TelegramScraperService extends TelegramClientService {
   private faceDescriptorService = new FaceDescriptorService()
@@ -30,9 +33,25 @@ export class TelegramScraperService extends TelegramClientService {
 
     const nameVariants = this.nameVariantService.generateUkrainianNameVariants(firstName, lastName, patronymic)
 
+    // ✅ Load reviewedMessages from search_results.json
+    const reviewedMessageIds = new Set<number>()
+    const logPath = path.join(TELEGRAM_CACHE_DIR, channelUsername, 'search_results.json')
+
+    try {
+      const logData = await fs.readFile(logPath, 'utf-8')
+      const log = JSON.parse(logData)
+      if (Array.isArray(log.reviewedMessages)) {
+        for (const id of log.reviewedMessages) {
+          reviewedMessageIds.add(id)
+        }
+      }
+    } catch (e) {
+      // file may not exist yet — okay
+    }
+
     for (const variant of nameVariants) {
       let offsetId = 0
-      let offsetDate = Math.floor(Date.now() / 1000) // Start from now
+      let offsetDate = Math.floor(Date.now() / 1000)
       let keepFetching = true
 
       while (keepFetching) {
@@ -56,7 +75,11 @@ export class TelegramScraperService extends TelegramClientService {
             break
           }
 
-          if (msg.message && !seenMessageIds.has(msg.id)) {
+          if (
+            msg.message &&
+            !seenMessageIds.has(msg.id) &&
+            !reviewedMessageIds.has(msg.id) // ✅ Skip already reviewed
+          ) {
             messages.push({
               text: msg.message,
               date: msgDate.toLocaleString('uk-UA'),

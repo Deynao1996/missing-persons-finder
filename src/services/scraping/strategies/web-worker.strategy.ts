@@ -1,4 +1,4 @@
-import { FaceMatcherResult, PageMatcherOptions, RouteOptions, WebsiteForSearch, WorkerOptions } from '../types'
+import { FaceMatcherResult, PageMatcherOptions, RouteOptions, WebsiteForSearch, WorkerOptions } from '../../types'
 import { delay } from '../../../utils/delay.util'
 import { ProxyService } from '../../network/proxy.service'
 import { NameVariantService } from '../../name-matching/name-variants.service'
@@ -73,7 +73,6 @@ export class WebWorkerStrategy {
 
     while (scrapedSoFar < MAX_IMAGES && routeIndex < site.routes.length) {
       const imagesForSearch = await this.webImageProcessorService.scrapeImagesFromRouteInMemory(site, routeIndex)
-      //TODO: Fix matches for
       // const matches = await this.faceMatchesService.findFaceMatches(inputDescriptor, imagesForSearch, MIN_SIMILARITY)
       const matches = [{ similarity: 2, meta: 'string', sourceImageUrl: 'string' }]
       if (!matches) return siteMatches

@@ -1,7 +1,7 @@
 import path from 'path'
 import fs from 'fs/promises'
 import { TelegramScraperService } from '../scraping/telegram-scrapper.service'
-import { BatchedImage } from '../image-processor/types'
+import { BatchedImage } from '../types'
 import { TelegramClientService } from '../client/telegram-client.service'
 import { SEARCH_TELEGRAM_FROM, TELEGRAM_CACHE_DIR } from '../../constants'
 import { SkipperService } from '../skipper/skipper.service'

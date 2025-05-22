@@ -102,3 +102,80 @@ export interface FetchedImageBatchOptions {
   minDate?: Date
   offsetId?: number
 }
+
+export interface NameMatchResult {
+  matches: string[]
+  excerpt?: string
+}
+
+export interface NameVariantOptions {
+  includeFemaleForms?: boolean
+  includeInitials?: boolean
+  includeReversed?: boolean
+}
+
+export interface SearchResultsLog {
+  searchedMessages: number[]
+  reviewedMessages: number[]
+  unreviewedMessages: number[]
+}
+
+export interface ExtractedImage {
+  src: string
+  width: number
+  height: number
+  alt: string
+}
+
+export interface BatchedImage {
+  imageBuffer: Buffer
+  meta: {
+    msgId: number
+    faceIndex: number
+    msgDate: Date
+    sourceImageUrl: string
+  }
+  descriptor: number[]
+}
+
+export interface ScrapedImage {
+  url: string
+  imageUrl: string
+  timestamp: string
+  buffer: Buffer
+  route: string
+  metadata: {
+    width: number
+    height: number
+    altText: string
+  }
+}
+
+export interface ScrapeOptions {
+  outputDir?: string
+  maxImages?: number
+  batchSize?: number
+  minDimensions?: { width: number; height: number }
+  backgroundSelectors?: string[]
+}
+
+export interface ScrapLargeVolume {
+  baseUrl: string
+  options?: ScrapeOptions
+  routes: string[]
+}
+
+export interface ImageProcessOptions {
+  targetFormat?: 'jpeg' | 'webp'
+  quality?: number
+  width?: number
+  height?: number
+}
+
+export interface ChannelTextMatchResults {
+  [channel: string]: TextMatchResult[]
+}
+
+export interface ChannelFaceMatchResults {
+  [channel: string]: FaceMatcherResult[]
+}

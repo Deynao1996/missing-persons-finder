@@ -9,7 +9,7 @@ import { handleErrors } from './middlewares/handle-errors.middleware'
 import { initFaceAPI } from './utils/face-api/init-face.util'
 
 dotenv.config()
-const PORT = process.env.PORT || 5000
+const PORT = process.env.PORT || 4000
 
 const app = express()
 app.use(cors())

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express'
-import { GoogleSearchService } from '../services/search-engines/google-search.service'
+import { GoogleSearchService } from '../services/search/google-search.service'
 
 const googleSearchService = new GoogleSearchService()
 

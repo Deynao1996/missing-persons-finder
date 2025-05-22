@@ -1,10 +1,10 @@
 import * as faceapi from 'face-api.js'
-import { FaceMatcherResult } from '../scraping/types'
 import * as readline from 'readline'
 import fs, { promises as promisesFs } from 'fs'
 import path from 'path'
-import { TELEGRAM_CACHE_DIR } from '../../constants'
-import { extractAvailableTelegramChannels } from '../../utils/extract.utils'
+import { SKIPPED_CHANNELS, TELEGRAM_CACHE_DIR } from '../../constants'
+import { extractAvailableTelegramChannels, extractMessageId } from '../../utils/extract.utils'
+import { FaceMatcherResult, SearchResultsLog } from '../types'
 
 async function* readNDJSONLines(filePath: string): AsyncGenerator<string> {
   const fileStream = fs.createReadStream(filePath)
@@ -23,9 +23,22 @@ export class FaceMatchesService {
   ): Promise<Record<string, FaceMatcherResult[]>> {
     const resultsByChannel: Record<string, FaceMatcherResult[]> = {}
 
-    const channels = await extractAvailableTelegramChannels()
+    const channels = await extractAvailableTelegramChannels(SKIPPED_CHANNELS)
     for (const channelName of channels) {
       const channelDir = path.join(TELEGRAM_CACHE_DIR, channelName)
+
+      // Load reviewed message IDs from search_results.json
+      const resultsLogPath = path.join(channelDir, 'search_results.json')
+      let reviewedIds = new Set<number>()
+      try {
+        const resultsLogRaw = await promisesFs.readFile(resultsLogPath, 'utf-8')
+        const parsedLog: SearchResultsLog = JSON.parse(resultsLogRaw)
+        reviewedIds = new Set(parsedLog.reviewedMessages)
+      } catch {
+        // Fine if file doesn't exist
+      }
+
+      // Read year files
       const yearFiles = (await promisesFs.readdir(channelDir))
         .filter((file) => file.endsWith('.ndjson'))
         .filter((file) => {
@@ -41,6 +54,11 @@ export class FaceMatchesService {
           for await (const line of readNDJSONLines(filePath)) {
             try {
               const item = JSON.parse(line)
+              const messageId = extractMessageId(item.sourceImageUrl)
+              if (messageId === null) continue
+
+              if (reviewedIds.has(messageId)) continue // Skip already reviewed
+
               const candidateDescriptor = new Float32Array(item.descriptor)
               const similarity = 1 - faceapi.euclideanDistance(inputDescriptor, candidateDescriptor)
 
@@ -67,7 +85,7 @@ export class FaceMatchesService {
       }
     }
 
-    // Optionally sort each channel's matches by similarity
+    // Sort matches per channel by similarity
     for (const channel of Object.keys(resultsByChannel)) {
       resultsByChannel[channel].sort((a, b) => b.similarity - a.similarity)
     }

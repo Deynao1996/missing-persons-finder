@@ -1,4 +1,4 @@
-import { NameVariantOptions } from './types'
+import { NameVariantOptions } from '../types'
 
 export class NameVariantService {
   generateUkrainianNameVariants(
