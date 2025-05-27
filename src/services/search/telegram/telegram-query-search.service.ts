@@ -50,11 +50,10 @@ export class TelegramQuerySearchService {
   async searchChannel(nameVariants: PartialSearchedName[], channelName: string): Promise<TextMatchResult[]> {
     const channelResults: TextMatchResult[] = []
 
-    for (const { firstName, lastName, patronymic } of nameVariants) {
+    for (const { firstName, lastName } of nameVariants) {
       const results = await this.telegramScrapper.searchMessagesInChannel(channelName, {
         firstName,
         lastName,
-        patronymic,
       })
       channelResults.push(...results)
     }

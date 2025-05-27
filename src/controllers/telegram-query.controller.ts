@@ -11,22 +11,28 @@ export const startSearchingByTextQuery = async (req: Request, res: Response, nex
     const { query } = req.body
 
     // Validate input
-    if (!query) {
-      return res.status(400).json({ error: 'Search query is required' })
-    }
+    // if (!query) {
+    //   return res.status(400).json({ error: 'Search query is required' })
+    // }
 
-    const queryId = query.trim().toLocaleLowerCase()
+    const person = await getPersonData(Number(query))
+    if (!person) return res.status(404).json({ error: 'No person folders found' })
+
+    const { fullName, imagePath, id } = person
+
+    // const queryId = query.trim().toLocaleLowerCase()
 
     // Process search
-    const searchResults = await telegramQuerySearch.performTextSearch(query, queryId)
+    // const searchResults = await telegramQuerySearch.performTextSearch(query, queryId)
+    const textResult = await telegramQuerySearch.performTextSearch(fullName, id)
 
     // Log results
-    await telegramQuerySearch.logSearchSession(query, searchResults, queryId)
+    // await telegramQuerySearch.logSearchSession(query, searchResults, queryId)
 
     // Temporary auto-review (remove for production)
-    await telegramQuerySearch.temporarilyMarkAsReviewed(queryId, searchResults)
+    // await telegramQuerySearch.temporarilyMarkAsReviewed(queryId, searchResults)
 
-    return res.json({ results: searchResults })
+    return res.json({ fullName, results: textResult })
   } catch (error) {
     next(error)
   }

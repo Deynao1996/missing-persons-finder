@@ -23,63 +23,65 @@ export class TelegramScraperService extends TelegramClientService {
 
   async searchMessagesInChannel(
     channelUsername: string,
-    { firstName, lastName, patronymic }: PartialSearchedName,
+    { firstName, lastName }: PartialSearchedName,
     date: string = '2022-04-21',
-    delayMs: number = 1000,
+    delayMs: number = 500,
   ): Promise<TextMatchResult[]> {
+    if (!lastName) {
+      console.warn('⚠️ No lastName provided. Cannot search.')
+      return []
+    }
+
     await this.connect()
     const channel = await this.client.getEntity(channelUsername)
     const messages: TextMatchResult[] = []
     const minDate = new Date(date)
 
-    const nameVariants = this.nameVariantService.generateUkrainianNameVariants(firstName, lastName, patronymic)
+    const searchTerm = lastName.toLowerCase()
+    let offsetId = 0
+    let offsetDate = Math.floor(Date.now() / 1000)
+    let keepFetching = true
 
-    for (const variant of nameVariants) {
-      let offsetId = 0
-      let offsetDate = Math.floor(Date.now() / 1000)
-      let keepFetching = true
+    while (keepFetching) {
+      const result = await this.client.getMessages(channel, {
+        limit: 100,
+        search: searchTerm,
+        offsetDate,
+        offsetId,
+      })
 
-      while (keepFetching) {
-        const result = await this.client.getMessages(channel, {
-          limit: 100,
-          search: variant,
-          offsetDate,
-          offsetId,
-        })
-
-        if (!result || result.length === 0) {
-          console.log(`✅ Finished for variant: "${variant}"`)
-          break
-        }
-
-        for (const msg of result) {
-          const msgDate = new Date(msg.date * 1000)
-          if (msgDate < minDate) {
-            console.log(`🛑 Reached minDate (${minDate.toISOString()}) for variant: "${variant}"`)
-            keepFetching = false
-            break
-          }
-
-          if (msg.message) {
-            messages.push({
-              text: msg.message,
-              date: msgDate.toLocaleString('uk-UA'),
-              link: `https://t.me/${channelUsername}/${msg.id}`,
-            })
-          }
-        }
-
-        const lastMsg = result[result.length - 1]
-        if (!lastMsg || lastMsg.id === offsetId) {
-          console.log(`⛔ No progress in offsetId, stopping for: "${variant}"`)
-          break
-        }
-
-        offsetId = lastMsg.id
-        offsetDate = lastMsg.date
-
-        if (delayMs) await delay(delayMs)
+      if (!result || result.length === 0) {
+        console.log(`✅ Finished search in ${channelUsername} for "${searchTerm}"`)
+        break
       }
+
+      for (const msg of result) {
+        const msgDate = new Date(msg.date * 1000)
+        if (msgDate < minDate) {
+          console.log(`🛑 Reached minDate (${minDate.toISOString()})`)
+          keepFetching = false
+          break
+        }
+
+        if (msg.message && firstName && this.messageContainsRelevantName(msg.message, firstName, lastName)) {
+          messages.push({
+            text: msg.message,
+            date: msgDate.toLocaleString('uk-UA'),
+            link: `https://t.me/${channelUsername}/${msg.id}`,
+          })
+        }
+      }
+
+      const lastMsg = result[result.length - 1]
+      if (!lastMsg || lastMsg.id === offsetId) {
+        console.log(`⛔ No progress in offsetId, stopping.`)
+        break
+      }
+
+      offsetId = lastMsg.id
+      offsetDate = lastMsg.date
+
+      if (delayMs) await delay(delayMs)
     }
 
     return messages
@@ -293,5 +295,32 @@ export class TelegramScraperService extends TelegramClientService {
     }
 
     return null
+  }
+
+  private messageContainsRelevantName(text: string, firstName: string, lastName: string): boolean {
+    if (!firstName || !lastName) return false
+
+    const lowerText = text.toLowerCase()
+    const lowerFirst = firstName.toLowerCase()
+    const lowerLast = lastName.toLowerCase()
+
+    // Full forms
+    const full1 = `${lowerLast} ${lowerFirst}`
+    const full2 = `${lowerFirst} ${lowerLast}`
+
+    // Abbreviated forms
+    const short1 = `${lowerLast} ${lowerFirst[0]}`
+    const short2 = `${lowerFirst[0]} ${lowerLast}`
+
+    // Optionally: comma-separated form
+    const commaForm = `${lowerLast}, ${lowerFirst}`
+
+    return (
+      lowerText.includes(full1) ||
+      lowerText.includes(full2) ||
+      lowerText.includes(short1) ||
+      lowerText.includes(short2) ||
+      lowerText.includes(commaForm)
+    )
   }
 }

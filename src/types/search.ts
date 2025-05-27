@@ -5,7 +5,6 @@ type ChannelsType = Record<string, number[]>
 export interface SearchedName {
   firstName: string
   lastName: string
-  patronymic?: string
 }
 
 type QueryId = string
