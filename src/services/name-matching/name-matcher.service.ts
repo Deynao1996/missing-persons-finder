@@ -29,8 +29,6 @@ export class NameMatcherService {
 
     if (foundVariants.length > 0) {
       const excerpt = await this.extractContext(page, foundVariants[0])
-      console.log(foundVariants, excerpt)
-
       return { matches: foundVariants, excerpt }
     }
 

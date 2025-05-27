@@ -1,4 +1,4 @@
-import { WebsiteForSearch } from '../services/scraping/types'
+import { WebsiteForSearch } from '../types'
 
 const UNITY_STRENGTH_ROUTES = [
   '/',

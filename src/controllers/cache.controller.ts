@@ -21,7 +21,7 @@ export const initializeCache = async (req: Request, res: Response, next: NextFun
 
 export const updateCache = async (_: Request, res: Response, next: NextFunction) => {
   try {
-    const channels = await extractAvailableTelegramChannels()
+    const channels = await extractAvailableTelegramChannels(['fgjgdcbjug'])
 
     for (const channelName of channels) {
       try {

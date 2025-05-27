@@ -1,11 +1,16 @@
 import { Router } from 'express'
-import { startSearching as startSearchingByQuery } from '../controllers/telegram-query.controller'
-import { startSearching as startSearchingByImage } from '../controllers/telegram-image.controller'
+import {
+  runCombinedSearch,
+  startSearchingByImagePath,
+  startSearchingByTextQuery,
+} from '../controllers/telegram-query.controller'
 
 const router = Router()
 
-router.post('/', startSearchingByQuery)
+router.post('/', startSearchingByTextQuery)
 
-router.post('/by-image', startSearchingByImage)
+router.post('/by-image', startSearchingByImagePath)
+
+router.post('/combine-search', runCombinedSearch)
 
 export default router

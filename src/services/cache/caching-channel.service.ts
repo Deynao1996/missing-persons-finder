@@ -1,10 +1,10 @@
 import path from 'path'
 import fs from 'fs/promises'
 import { TelegramScraperService } from '../scraping/telegram-scrapper.service'
-import { BatchedImage } from '../types'
 import { TelegramClientService } from '../client/telegram-client.service'
 import { SEARCH_TELEGRAM_FROM, TELEGRAM_CACHE_DIR } from '../../constants'
 import { SkipperService } from '../skipper/skipper.service'
+import { BatchedImage } from '../../types'
 
 export class CachingChannelService extends TelegramClientService {
   private telegramService = new TelegramScraperService()

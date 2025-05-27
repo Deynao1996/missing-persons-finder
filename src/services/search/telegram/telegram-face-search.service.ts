@@ -1,12 +1,10 @@
 import { MIN_SIMILARITY } from '../../../constants'
+import { EnrichedFaceMatcherResult } from '../../../types'
 import { extractMessageId } from '../../../utils/extract.utils'
 import { FaceDescriptorService } from '../../face-detection/face-descriptor.service'
 import { FaceMatchesService } from '../../face-detection/face-matches.service'
 import { LoggerService } from '../../logs/logger.service'
 import { TelegramScraperService } from '../../scraping/telegram-scrapper.service'
-import { FaceMatcherResult } from '../../scraping/types'
-
-//TODO: Check refactoring types folder structure for a project
 
 export class TelegramFaceSearchService {
   private faceDescriptor = new FaceDescriptorService()
@@ -16,9 +14,10 @@ export class TelegramFaceSearchService {
 
   async searchByImage(
     imagePath: string,
+    queryId: string,
     minYear?: number,
     minSimilarity: number = MIN_SIMILARITY,
-  ): Promise<{ results: Record<string, FaceMatcherResult[]>; totalMatches: number }> {
+  ): Promise<{ results: EnrichedFaceMatcherResult; totalMatches: number }> {
     // Validate and get descriptor
     const inputDescriptor = await this.validateAndGetDescriptor(imagePath)
 
@@ -26,14 +25,12 @@ export class TelegramFaceSearchService {
     const rawResults = await this.faceMatches.findDescriptorMatchesAcrossAllChannels(
       inputDescriptor,
       minSimilarity,
+      queryId,
       minYear,
     )
 
     // Enrich with Telegram data
     const enrichedResults = await this.enrichResults(rawResults)
-
-    // Log results
-    await this.logResults(imagePath, enrichedResults)
 
     return {
       results: enrichedResults,
@@ -54,28 +51,26 @@ export class TelegramFaceSearchService {
     return descriptor
   }
 
-  private async enrichResults(results: Record<string, FaceMatcherResult[]>) {
+  private async enrichResults(results: EnrichedFaceMatcherResult) {
     return await this.telegramScraper.enrichFaceMatchesWithTelegramMessages(results, this.telegramScraper)
   }
 
-  private async logResults(imagePath: string, results: Record<string, FaceMatcherResult[]>) {
-    await Promise.all([
-      this.loggerService.saveSearchResultsLog(results),
-      this.loggerService.logGlobalSearchSession(imagePath, results),
-    ])
+  async logResults(imagePath: string, results: EnrichedFaceMatcherResult, queryId: string) {
+    await this.loggerService.saveSearchResultsLog(queryId, results, (r) => extractMessageId(r.sourceImageUrl))
+    await this.loggerService.logGlobalSearchSession('image', imagePath, results, (m) =>
+      extractMessageId(m.sourceImageUrl),
+    )
   }
 
-  private countTotalMatches(results: Record<string, FaceMatcherResult[]>): number {
+  private countTotalMatches(results: EnrichedFaceMatcherResult): number {
     return Object.values(results).flat().length
   }
 
   // For development only
-  async temporaryMarkAsReviewed(results: Record<string, FaceMatcherResult[]>) {
-    await Promise.all(
-      Object.entries(results).map(async ([channel, matches]) => {
-        const ids = matches.map((m) => extractMessageId(m.sourceImageUrl)).filter(Boolean) as number[]
-        await this.loggerService.markMessagesAsReviewed(channel, ids)
-      }),
-    )
+  async temporaryMarkAsReviewed(queryId: string, results: EnrichedFaceMatcherResult) {
+    for (const [channel, matches] of Object.entries(results)) {
+      const ids = matches.map((m) => extractMessageId(m.sourceImageUrl)).filter((id): id is number => id !== null)
+      await this.loggerService.markMessagesAsReviewed(queryId, channel, ids)
+    }
   }
 }

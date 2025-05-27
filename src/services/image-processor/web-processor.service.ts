@@ -5,7 +5,7 @@ import { autoScroll } from '../../utils/puppeteer/auto-scroll.util'
 import { BATCH_SIZE } from '../../constants'
 import { ImageProcessorService } from './image-processor.service'
 import { downloadImageBuffer } from '../../utils/download-image-buffer.util'
-import { BatchedImage, ExtractedImage, ScrapedImage, ScrapLargeVolume, WebsiteForSearch } from '../types'
+import { BatchedImage, ExtractedImage, ScrapedImage, ScrapLargeVolume, WebsiteForSearch } from '../../types'
 
 export class WebImageProcessorService {
   private faceDescriptorService = new FaceDescriptorService()

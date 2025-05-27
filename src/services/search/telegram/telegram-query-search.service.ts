@@ -3,31 +3,41 @@ import { extractAvailableTelegramChannels, extractMessageId, parseSearchQuery } 
 import { LoggerService } from '../../logs/logger.service'
 import { NameVariantService } from '../../name-matching/name-variants.service'
 import { TelegramScraperService } from '../../scraping/telegram-scrapper.service'
-import { PartialSearchedName, TextMatchResult } from '../../scraping/types'
+import { PartialSearchedName, TextMatchResult } from '../../../types'
 
 export class TelegramQuerySearchService {
   private nameVariantService = new NameVariantService()
   private loggerService = new LoggerService()
   private telegramScrapper = new TelegramScraperService()
 
-  async performTextSearch(query: string): Promise<Record<string, TextMatchResult[]>> {
+  async performTextSearch(query: string, queryId: string): Promise<Record<string, TextMatchResult[]>> {
     const rawQueries = parseSearchQuery(query)
     const parsedNames = rawQueries.map(this.nameVariantService.parseNameQuery)
     const channels = await extractAvailableTelegramChannels(SKIPPED_CHANNELS)
     const allResults: Record<string, TextMatchResult[]> = {}
 
-    await Promise.all(
-      channels.map(async (channelName) => {
-        try {
-          const channelResults = await this.searchChannel(parsedNames, channelName)
-          if (channelResults.length > 0) {
-            allResults[channelName] = channelResults
-          }
-        } catch (error) {
-          console.warn(`⚠️ Skipping ${channelName} due to error:`, error)
+    const log = await this.loggerService.loadChannelLog()
+
+    for (const channelName of channels) {
+      try {
+        const reviewedIds = new Set(log.reviewedMessages[queryId]?.[channelName] || [])
+
+        const channelResults = await this.searchChannel(parsedNames, channelName)
+
+        // Filter out reviewed messages
+        const filteredResults = channelResults.filter((result) => {
+          const id = extractMessageId(result.link)
+          return id !== null && !reviewedIds.has(id)
+        })
+
+        if (filteredResults.length > 0) {
+          allResults[channelName] = filteredResults
+          console.log(`✅ Found ${filteredResults.length} matches in ${channelName}`)
         }
-      }),
-    )
+      } catch (error) {
+        console.warn(`⚠️ Skipping ${channelName} due to error:`, error)
+      }
+    }
 
     return allResults
   }
@@ -52,19 +62,15 @@ export class TelegramQuerySearchService {
     return this.deduplicateResults(channelResults)
   }
 
-  async logSearchSession(query: string, results: Record<string, TextMatchResult[]>): Promise<void> {
-    await Promise.all([
-      this.loggerService.saveTextSearchResultsLog(results),
-      this.loggerService.logTextSearchSession(query, results),
-    ])
+  async logSearchSession(query: string, results: Record<string, TextMatchResult[]>, queryId: string): Promise<void> {
+    await this.loggerService.saveSearchResultsLog(queryId, results, (r) => extractMessageId(r.link))
+    await this.loggerService.logGlobalSearchSession('text', query, results, (m) => extractMessageId(m.link))
   }
 
-  async temporarilyMarkAsReviewed(results: Record<string, TextMatchResult[]>): Promise<void> {
-    await Promise.all(
-      Object.entries(results).map(async ([channel, results]) => {
-        const ids = results.map((r) => extractMessageId(r.link)).filter((id): id is number => id !== null)
-        return this.loggerService.markMessagesAsReviewed(channel, ids)
-      }),
-    )
+  async temporarilyMarkAsReviewed(queryId: string, results: Record<string, TextMatchResult[]>): Promise<void> {
+    for (const [channel, resultsArray] of Object.entries(results)) {
+      const ids = resultsArray.map((r) => extractMessageId(r.link)).filter((id): id is number => id !== null)
+      await this.loggerService.markMessagesAsReviewed(queryId, channel, ids)
+    }
   }
 }

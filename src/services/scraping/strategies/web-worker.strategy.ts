@@ -1,17 +1,15 @@
-import { FaceMatcherResult, PageMatcherOptions, RouteOptions, WebsiteForSearch, WorkerOptions } from '../../types'
 import { delay } from '../../../utils/delay.util'
 import { ProxyService } from '../../network/proxy.service'
 import { NameVariantService } from '../../name-matching/name-variants.service'
 import { NameMatcherService } from '../../name-matching/name-matcher.service'
 import { WebImageProcessorService } from '../../image-processor/web-processor.service'
-import { MIN_SIMILARITY, MAX_IMAGES } from '../../../constants'
-import { FaceMatchesService } from '../../face-detection/face-matches.service'
+import { MAX_IMAGES } from '../../../constants'
+import { FaceMatcherResult, PageMatcherOptions, RouteOptions, WebsiteForSearch, WorkerOptions } from '../../../types'
 
 export class WebWorkerStrategy {
   private proxyService = new ProxyService()
   private nameVariantsService = new NameVariantService()
   private nameMatcherService = new NameMatcherService()
-  private faceMatchesService = new FaceMatchesService()
   private webImageProcessorService = new WebImageProcessorService()
 
   async runWorker(workerId: number, { browser, name, websites, results, options }: WorkerOptions): Promise<void> {

@@ -1,4 +1,4 @@
-import { NameVariantOptions } from '../types'
+import { NameVariantOptions } from '../../types'
 
 export class NameVariantService {
   generateUkrainianNameVariants(
@@ -19,13 +19,9 @@ export class NameVariantService {
     if (lastName && firstName) {
       variants.push(`${lastName} ${firstName}`.toLowerCase(), `${firstName} ${lastName}`.toLowerCase())
 
-      if (options.includeInitials ?? true) {
-        variants.push(`${firstName.charAt(0)}. ${lastName}`.toLowerCase())
-      }
-
-      if ((options.includeFemaleForms ?? true) && lastName.endsWith('ко')) {
-        variants.push(`${firstName} ${lastName.replace('ко', 'ка')}`.toLowerCase())
-      }
+      // if (options.includeInitials ?? true) {
+      //   variants.push(`${firstName.charAt(0)}. ${lastName}`.toLowerCase())
+      // }
 
       if (options.includeReversed ?? false) {
         variants.push(`${lastName}, ${firstName}`.toLowerCase())
@@ -34,10 +30,6 @@ export class NameVariantService {
 
     if (lastName && !firstName) {
       variants.push(lastName.toLowerCase())
-
-      if ((options.includeFemaleForms ?? true) && lastName.endsWith('ко')) {
-        variants.push(lastName.replace('ко', 'ка').toLowerCase())
-      }
     }
 
     if (firstName && !lastName) {

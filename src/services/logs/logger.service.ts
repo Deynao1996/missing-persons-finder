@@ -1,199 +1,124 @@
-import path from 'path'
-import { TELEGRAM_CACHE_DIR } from '../../constants'
 import fs from 'fs/promises'
-import { extractMessageId } from '../../utils/extract.utils'
-import { ChannelFaceMatchResults, ChannelTextMatchResults, SearchResultsLog } from '../types'
+import path from 'path'
+import { SearchHistory, SearchResultsLog } from '../../types'
 
 export class LoggerService {
-  async saveSearchResultsLog(results: ChannelFaceMatchResults) {
+  private historyPath = path.join('data', 'telegram_cache', 'search_history.json')
+  private logPath = path.join('data', 'telegram_cache', 'search_results.json')
+
+  async loadChannelLog(): Promise<SearchResultsLog> {
+    try {
+      const raw = await fs.readFile(this.logPath, 'utf-8')
+      return JSON.parse(raw)
+    } catch {
+      return {
+        searchedMessages: {},
+        reviewedMessages: {},
+        unreviewedMessages: {},
+      }
+    }
+  }
+
+  private async saveChannelLog(log: SearchResultsLog) {
+    await fs.writeFile(this.logPath, JSON.stringify(log, null, 2))
+  }
+
+  private deduplicate(arr: number[]): number[] {
+    return Array.from(new Set(arr)).sort((a, b) => a - b)
+  }
+
+  async saveSearchResultsLog<T extends { sourceImageUrl?: string; link?: string }>(
+    queryId: string,
+    results: Record<string, T[]>,
+    extractMessageId: (result: T) => number | null,
+  ) {
+    const log = await this.loadChannelLog()
+
     for (const [channel, matches] of Object.entries(results)) {
-      const logPath = path.join(TELEGRAM_CACHE_DIR, channel, 'search_results.json')
+      const newIds = matches.map((m) => extractMessageId(m)).filter((id): id is number => id !== null)
 
-      // Default log structure
-      let log: SearchResultsLog = {
-        searchedMessages: [],
-        reviewedMessages: [],
-        unreviewedMessages: [],
-      }
+      if (!log.searchedMessages[queryId]) log.searchedMessages[queryId] = {}
+      if (!log.reviewedMessages[queryId]) log.reviewedMessages[queryId] = {}
+      if (!log.unreviewedMessages[queryId]) log.unreviewedMessages[queryId] = {}
 
-      // Try reading existing log file if it exists
-      try {
-        const data = await fs.readFile(logPath, 'utf-8')
-        log = JSON.parse(data)
-      } catch (e) {
-        // File might not exist yet — that's OK
-      }
+      const searched = log.searchedMessages[queryId][channel] || []
+      const reviewed = new Set(log.reviewedMessages[queryId][channel] || [])
+      const unreviewed = new Set(log.unreviewedMessages[queryId][channel] || [])
 
-      // Convert existing arrays to sets for efficient duplicate checking
-      const searched = new Set<number>(log.searchedMessages)
-      const reviewed = new Set<number>(log.reviewedMessages)
-      const unreviewed = new Set<number>(log.unreviewedMessages)
+      log.searchedMessages[queryId][channel] = this.deduplicate([...searched, ...newIds])
 
-      for (const match of matches) {
-        const messageId = extractMessageId(match.sourceImageUrl)
-        if (messageId === null) continue
-
-        searched.add(messageId)
-
-        // Add to unreviewed only if not already reviewed or unreviewed
-        if (!reviewed.has(messageId) && !unreviewed.has(messageId)) {
-          unreviewed.add(messageId)
+      for (const id of newIds) {
+        if (!reviewed.has(id)) {
+          unreviewed.add(id)
         }
       }
 
-      // Save updated log back to file
-      const updatedLog: SearchResultsLog = {
-        searchedMessages: Array.from(searched),
-        reviewedMessages: Array.from(reviewed),
-        unreviewedMessages: Array.from(unreviewed),
-      }
-
-      await fs.writeFile(logPath, JSON.stringify(updatedLog, null, 2), 'utf-8')
+      log.unreviewedMessages[queryId][channel] = this.deduplicate([...unreviewed])
     }
+
+    await this.saveChannelLog(log)
   }
 
-  async logGlobalSearchSession(imagePath: string, results: ChannelFaceMatchResults) {
-    const logPath = path.join(TELEGRAM_CACHE_DIR, 'search_history.json')
+  async markMessagesAsReviewed(queryId: string, channel: string, ids: number[]) {
+    const log = await this.loadChannelLog()
 
-    let globalLog: {
-      searches: {
-        timestamp: string
-        inputImagePath: string
-        channels: Record<string, number[]>
-      }[]
-    } = { searches: [] }
+    if (!log.reviewedMessages[queryId]) log.reviewedMessages[queryId] = {}
+    if (!log.unreviewedMessages[queryId]) log.unreviewedMessages[queryId] = {}
 
-    try {
-      const data = await fs.readFile(logPath, 'utf-8')
-      globalLog = JSON.parse(data)
-    } catch (e) {
-      // File might not exist yet
-    }
+    const reviewedSet = new Set(log.reviewedMessages[queryId][channel] || [])
+    const unreviewedSet = new Set(log.unreviewedMessages[queryId][channel] || [])
 
-    const channels: Record<string, number[]> = {}
-    for (const [channel, matches] of Object.entries(results)) {
-      const ids = matches.map((m) => extractMessageId(m.sourceImageUrl)).filter(Boolean) as number[]
-      channels[channel] = ids
-    }
-
-    globalLog.searches.push({
-      timestamp: new Date().toISOString(),
-      inputImagePath: imagePath,
-      channels,
-    })
-
-    await fs.writeFile(logPath, JSON.stringify(globalLog, null, 2), 'utf-8')
-  }
-
-  async markMessagesAsReviewed(channel: string, messageIds: number[]) {
-    const logPath = path.join(TELEGRAM_CACHE_DIR, channel, 'search_results.json')
-
-    let log: SearchResultsLog = {
-      searchedMessages: [],
-      reviewedMessages: [],
-      unreviewedMessages: [],
-    }
-
-    try {
-      const data = await fs.readFile(logPath, 'utf-8')
-      log = JSON.parse(data)
-    } catch (e) {
-      // OK if not exists
-    }
-
-    const reviewedSet = new Set(log.reviewedMessages)
-    const unreviewedSet = new Set(log.unreviewedMessages)
-
-    for (const id of messageIds) {
+    for (const id of ids) {
       reviewedSet.add(id)
       unreviewedSet.delete(id)
     }
 
-    log.reviewedMessages = Array.from(reviewedSet)
-    log.unreviewedMessages = Array.from(unreviewedSet)
+    log.reviewedMessages[queryId][channel] = this.deduplicate([...reviewedSet])
+    log.unreviewedMessages[queryId][channel] = this.deduplicate([...unreviewedSet])
 
-    await fs.writeFile(logPath, JSON.stringify(log, null, 2), 'utf-8')
+    await this.saveChannelLog(log)
   }
 
-  async logTextSearchSession(query: string, results: ChannelTextMatchResults) {
-    const logPath = path.join(TELEGRAM_CACHE_DIR, 'search_history.json')
+  async logGlobalSearchSession<T>(
+    type: 'image' | 'text',
+    query: string,
+    results: Record<string, T[]>,
+    extractMessageId: (item: T) => number | null,
+  ) {
+    const history = await this.readSearchHistory()
 
-    let globalLog: {
-      searches: {
-        timestamp: string
-        type: 'image' | 'text'
-        inputImagePath?: string
-        query?: string
-        channels: Record<string, number[]>
-      }[]
-    } = { searches: [] }
-
-    try {
-      const data = await fs.readFile(logPath, 'utf-8')
-      globalLog = JSON.parse(data)
-    } catch {
-      // It's okay if file doesn't exist yet
-    }
-
-    const channels: Record<string, number[]> = {}
+    const timestamp = new Date().toISOString()
+    const channelMatches: Record<string, number[]> = {}
 
     for (const [channel, matches] of Object.entries(results)) {
-      const ids = matches.map((m) => extractMessageId(m.link)).filter((id): id is number => id !== null)
-
-      if (ids.length > 0) {
-        channels[channel] = ids
-      }
+      channelMatches[channel] = matches.map(extractMessageId).filter((id): id is number => id !== null)
     }
 
-    globalLog.searches.push({
-      timestamp: new Date().toISOString(),
-      type: 'text',
+    history.searches.push({
+      type,
+      timestamp,
       query,
-      channels,
+      channels: channelMatches,
     })
 
-    await fs.writeFile(logPath, JSON.stringify(globalLog, null, 2), 'utf-8')
+    await this.writeSearchHistory(history)
   }
 
-  async saveTextSearchResultsLog(results: ChannelTextMatchResults) {
-    for (const [channel, matches] of Object.entries(results)) {
-      const logPath = path.join(TELEGRAM_CACHE_DIR, channel, 'search_results.json')
-
-      let log: SearchResultsLog = {
-        searchedMessages: [],
-        reviewedMessages: [],
-        unreviewedMessages: [],
-      }
-
-      try {
-        const data = await fs.readFile(logPath, 'utf-8')
-        log = JSON.parse(data)
-      } catch {
-        // It's okay if the log doesn't exist yet
-      }
-
-      const searched = new Set<number>(log.searchedMessages)
-      const reviewed = new Set<number>(log.reviewedMessages)
-      const unreviewed = new Set<number>(log.unreviewedMessages)
-
-      for (const match of matches) {
-        const messageId = extractMessageId(match.link)
-        if (messageId === null) continue
-
-        searched.add(messageId)
-
-        if (!reviewed.has(messageId) && !unreviewed.has(messageId)) {
-          unreviewed.add(messageId)
-        }
-      }
-
-      const updatedLog: SearchResultsLog = {
-        searchedMessages: Array.from(searched),
-        reviewedMessages: Array.from(reviewed),
-        unreviewedMessages: Array.from(unreviewed),
-      }
-
-      await fs.writeFile(logPath, JSON.stringify(updatedLog, null, 2), 'utf-8')
+  private async readSearchHistory(): Promise<SearchHistory> {
+    try {
+      const raw = await fs.readFile(this.historyPath, 'utf8')
+      return JSON.parse(raw)
+    } catch {
+      return { searches: [] }
     }
+  }
+
+  private async writeSearchHistory(history: SearchHistory) {
+    await this.writeJSON(this.historyPath, history)
+  }
+
+  private async writeJSON(filePath: string, data: unknown) {
+    const json = JSON.stringify(data, null, 2)
+    await fs.writeFile(filePath, json, 'utf8')
   }
 }

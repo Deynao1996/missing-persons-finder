@@ -1,15 +1,17 @@
-import { FaceMatcherResult, PartialSearchedName, TextMatchResult } from '../types'
 import { TelegramClientService } from '../client/telegram-client.service'
 import { Api } from 'telegram'
 import { FaceDescriptorService } from '../face-detection/face-descriptor.service'
 import { delay } from '../../utils/delay.util'
 import { NameVariantService } from '../name-matching/name-variants.service'
 import { ImageProcessorService } from '../image-processor/image-processor.service'
-import { BatchedImage } from '../types'
 import { parseTelegramLink } from '../../utils/extract.utils'
-import fs from 'fs/promises'
-import path from 'path'
-import { TELEGRAM_CACHE_DIR } from '../../constants'
+import {
+  BatchedImage,
+  EnrichedFaceMatcherResult,
+  FaceMatcherResult,
+  PartialSearchedName,
+  TextMatchResult,
+} from '../../types'
 
 export class TelegramScraperService extends TelegramClientService {
   private faceDescriptorService = new FaceDescriptorService()
@@ -28,26 +30,9 @@ export class TelegramScraperService extends TelegramClientService {
     await this.connect()
     const channel = await this.client.getEntity(channelUsername)
     const messages: TextMatchResult[] = []
-    const seenMessageIds = new Set<number>()
     const minDate = new Date(date)
 
     const nameVariants = this.nameVariantService.generateUkrainianNameVariants(firstName, lastName, patronymic)
-
-    // ✅ Load reviewedMessages from search_results.json
-    const reviewedMessageIds = new Set<number>()
-    const logPath = path.join(TELEGRAM_CACHE_DIR, channelUsername, 'search_results.json')
-
-    try {
-      const logData = await fs.readFile(logPath, 'utf-8')
-      const log = JSON.parse(logData)
-      if (Array.isArray(log.reviewedMessages)) {
-        for (const id of log.reviewedMessages) {
-          reviewedMessageIds.add(id)
-        }
-      }
-    } catch (e) {
-      // file may not exist yet — okay
-    }
 
     for (const variant of nameVariants) {
       let offsetId = 0
@@ -75,17 +60,12 @@ export class TelegramScraperService extends TelegramClientService {
             break
           }
 
-          if (
-            msg.message &&
-            !seenMessageIds.has(msg.id) &&
-            !reviewedMessageIds.has(msg.id) // ✅ Skip already reviewed
-          ) {
+          if (msg.message) {
             messages.push({
               text: msg.message,
               date: msgDate.toLocaleString('uk-UA'),
               link: `https://t.me/${channelUsername}/${msg.id}`,
             })
-            seenMessageIds.add(msg.id)
           }
         }
 
@@ -192,10 +172,10 @@ export class TelegramScraperService extends TelegramClientService {
   }
 
   async enrichFaceMatchesWithTelegramMessages(
-    results: Record<string, FaceMatcherResult[]>,
+    results: EnrichedFaceMatcherResult,
     scraper: TelegramScraperService,
-  ): Promise<Record<string, FaceMatcherResult[]>> {
-    const enrichedResults: Record<string, FaceMatcherResult[]> = {}
+  ): Promise<EnrichedFaceMatcherResult> {
+    const enrichedResults: EnrichedFaceMatcherResult = {}
 
     for (const [channel, matches] of Object.entries(results)) {
       enrichedResults[channel] = []

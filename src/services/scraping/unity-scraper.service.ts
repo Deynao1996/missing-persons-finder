@@ -1,9 +1,9 @@
 import puppeteer from 'puppeteer'
-import { BulkAcrossWebsites, FaceMatcherResult, SearchedName, TextMatchResult } from '../types'
 import { ProxyService } from '../network/proxy.service'
 import { WebWorkerStrategy } from './strategies/web-worker.strategy'
 import { FaceDescriptorService } from '../face-detection/face-descriptor.service'
 import { SEARCHING_WEBSITES } from '../../constants'
+import { BulkAcrossWebsites, FaceMatcherResult, TextMatchResult } from '../../types'
 
 export class UnityScraperService {
   private proxyService = new ProxyService()

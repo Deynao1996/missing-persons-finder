@@ -1,5 +1,5 @@
 import sharp from 'sharp'
-import { ImageProcessOptions } from './types'
+import { ImageProcessOptions } from '../../types'
 
 export class ImageProcessorService {
   async processImageBuffer(buffer: Buffer, options: ImageProcessOptions = {}): Promise<Buffer> {

@@ -5,6 +5,7 @@ import dotenv from 'dotenv'
 import googleSearchEngineRoutes from './routes/google.route'
 import cacheChannelRoutes from './routes/cache.route'
 import telegramQueryRoutes from './routes/telegram-query.route'
+import testQueryRoutes from './routes/test.route'
 import { handleErrors } from './middlewares/handle-errors.middleware'
 import { initFaceAPI } from './utils/face-api/init-face.util'
 
@@ -18,6 +19,7 @@ app.use(express.json())
 app.use('/api/google-search', googleSearchEngineRoutes)
 app.use('/api/cache-channel', cacheChannelRoutes)
 app.use('/api/telegram-query', telegramQueryRoutes)
+app.use('/api/test', testQueryRoutes)
 
 app.use(handleErrors())
 
