@@ -1,10 +1,12 @@
 import { Request, Response, NextFunction } from 'express'
 import { CachingChannelService } from '../services/cache/caching-channel.service'
 import { extractAvailableTelegramChannels } from '../utils/extract.utils'
+import { CachingWebService } from '../services/cache/caching-web.service'
 
 const cachingChannelService = new CachingChannelService()
+const cachingWebService = new CachingWebService()
 
-export const initializeCache = async (req: Request, res: Response, next: NextFunction) => {
+export const initializeTelegramCache = async (req: Request, res: Response, next: NextFunction) => {
   const { channelName } = req.body
 
   if (!channelName) {
@@ -14,6 +16,15 @@ export const initializeCache = async (req: Request, res: Response, next: NextFun
   try {
     const results = await cachingChannelService.initializeChannelCache(channelName)
     res.json({ results })
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const initializeWebCache = async (_: Request, res: Response, next: NextFunction) => {
+  try {
+    await cachingWebService.createFullCache()
+    res.json({ message: 'Initial cache created' })
   } catch (error) {
     next(error)
   }
@@ -30,6 +41,8 @@ export const updateCache = async (_: Request, res: Response, next: NextFunction)
         console.warn(`⚠️ Failed to update cache for ${channelName}:`, err)
       }
     }
+
+    await cachingWebService.updateCacheIfNew()
 
     res.json({ results: 'Cache updated' })
   } catch (error) {

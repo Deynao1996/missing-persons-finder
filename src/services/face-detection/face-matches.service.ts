@@ -54,7 +54,7 @@ export class FaceMatchesService {
               const item = JSON.parse(line)
               const messageId = extractMessageId(item.sourceImageUrl)
               if (messageId === null) continue
-              if (reviewedIds.has(messageId)) continue // ✅ Skip reviewed
+              if (reviewedIds.has(messageId as number)) continue // ✅ Skip reviewed
 
               const candidateDescriptor = new Float32Array(item.descriptor)
               const similarity = 1 - faceapi.euclideanDistance(inputDescriptor, candidateDescriptor)

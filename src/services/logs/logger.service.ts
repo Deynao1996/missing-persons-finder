@@ -1,10 +1,10 @@
 import fs from 'fs/promises'
 import path from 'path'
-import { SearchHistory, SearchResultsLog } from '../../types'
+import { MessageId, SearchHistory, SearchResultsLog } from '../../types'
 
 export class LoggerService {
-  private historyPath = path.join('data', 'telegram_cache', 'search_history.json')
-  private logPath = path.join('data', 'telegram_cache', 'search_results.json')
+  private historyPath = path.join('data', 'search_history.json')
+  private logPath = path.join('data', 'search_results.json')
 
   async loadChannelLog(): Promise<SearchResultsLog> {
     try {
@@ -23,19 +23,22 @@ export class LoggerService {
     await fs.writeFile(this.logPath, JSON.stringify(log, null, 2))
   }
 
-  private deduplicate(arr: number[]): number[] {
-    return Array.from(new Set(arr)).sort((a, b) => a - b)
+  private deduplicate<T extends MessageId>(arr: T[]): T[] {
+    return Array.from(new Set(arr)).sort((a, b) => {
+      // Convert both to strings to allow sorting
+      return String(a).localeCompare(String(b))
+    })
   }
 
-  async saveSearchResultsLog<T extends { sourceImageUrl?: string; link?: string }>(
+  async saveSearchResultsLog<T extends { link?: string }>(
     queryId: string,
     results: Record<string, T[]>,
-    extractMessageId: (result: T) => number | null,
+    extractMessageId: (result: T) => MessageId | null,
   ) {
     const log = await this.loadChannelLog()
 
     for (const [channel, matches] of Object.entries(results)) {
-      const newIds = matches.map((m) => extractMessageId(m)).filter((id): id is number => id !== null)
+      const newIds = matches.map(extractMessageId).filter((id): id is MessageId => id !== null)
 
       if (!log.searchedMessages[queryId]) log.searchedMessages[queryId] = {}
       if (!log.reviewedMessages[queryId]) log.reviewedMessages[queryId] = {}
@@ -59,7 +62,7 @@ export class LoggerService {
     await this.saveChannelLog(log)
   }
 
-  async markMessagesAsReviewed(queryId: string, channel: string, ids: number[]) {
+  async markMessagesAsReviewed(queryId: string, channel: string, ids: MessageId[]) {
     const log = await this.loadChannelLog()
 
     if (!log.reviewedMessages[queryId]) log.reviewedMessages[queryId] = {}
@@ -83,15 +86,15 @@ export class LoggerService {
     type: 'image' | 'text',
     query: string,
     results: Record<string, T[]>,
-    extractMessageId: (item: T) => number | null,
+    extractMessageId: (item: T) => MessageId | null,
   ) {
     const history = await this.readSearchHistory()
 
     const timestamp = new Date().toISOString()
-    const channelMatches: Record<string, number[]> = {}
+    const channelMatches: Record<string, MessageId[]> = {}
 
     for (const [channel, matches] of Object.entries(results)) {
-      channelMatches[channel] = matches.map(extractMessageId).filter((id): id is number => id !== null)
+      channelMatches[channel] = matches.map(extractMessageId).filter((id): id is MessageId => id !== null)
     }
 
     history.searches.push({

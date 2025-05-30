@@ -2,9 +2,26 @@ import fs from 'fs/promises'
 import { TELEGRAM_CACHE_DIR } from '../constants'
 import path from 'path'
 
-export function extractMessageId(url: string): number | null {
-  const match = url.match(/\/(\d+)(?:\/)?$/)
-  return match ? parseInt(match[1], 10) : null
+export function extractMessageId(link: string): number | string | null {
+  try {
+    const url = new URL(link)
+
+    if (url.hostname === 't.me') {
+      // Telegram: extract numeric ID from path
+      const match = url.pathname.match(/\/(\d+)(?:\/)?$/)
+      return match ? parseInt(match[1], 10) : null
+    }
+
+    if (url.hostname.includes(process.env.SOURCE_DOMAIN!)) {
+      const parts = url.pathname.split('/').filter(Boolean)
+      return parts.at(-1) || null
+    }
+
+    // Add more sites here if needed
+    return null
+  } catch {
+    return null
+  }
 }
 
 export async function extractAvailableTelegramChannels(exclude: string[] = []): Promise<string[]> {

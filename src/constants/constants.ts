@@ -14,6 +14,7 @@ export const SEARCH_TELEGRAM_FROM = '2022-04-21'
 //   'NezlamniPoshukUa',
 //   'poshukpidchasviyni',
 //   'borshukr',
-//    'poloneni_zsu'
+//   'poloneni_zsu',
+//   'fgjgdcbjug',
 // ]
 export const SKIPPED_CHANNELS = undefined

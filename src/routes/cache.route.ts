@@ -1,9 +1,10 @@
 import { Router } from 'express'
-import { initializeCache, updateCache } from '../controllers/cache.controller'
+import { initializeTelegramCache, initializeWebCache, updateCache } from '../controllers/cache.controller'
 
 const router = Router()
 
-router.post('/', initializeCache)
+router.post('/telegram-init', initializeTelegramCache)
+router.post('/web-init', initializeWebCache)
 
 router.post('/update', updateCache)
 

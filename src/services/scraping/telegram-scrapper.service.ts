@@ -235,7 +235,6 @@ export class TelegramScraperService extends TelegramClientService {
         newlySkipped.add(msg.id)
         return null
       }
-
       const processed = await this.imageProcessorService.processImageBuffer(buffer)
       const descriptors = await this.faceDescriptorService.getMultipleFaceDescriptors(processed)
 

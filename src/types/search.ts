@@ -48,10 +48,12 @@ export interface TextLogSearches {
   channels: ChannelsType
 }
 
+export type MessageId = number | string
+
 export interface SearchResultsLog {
-  searchedMessages: Record<QueryId, Record<string, number[]>>
-  reviewedMessages: Record<QueryId, Record<string, number[]>>
-  unreviewedMessages: Record<QueryId, Record<string, number[]>>
+  searchedMessages: Record<QueryId, Record<string, MessageId[]>>
+  reviewedMessages: Record<QueryId, Record<string, MessageId[]>>
+  unreviewedMessages: Record<QueryId, Record<string, MessageId[]>>
 }
 
 type GlobalSearchSession =
@@ -59,13 +61,13 @@ type GlobalSearchSession =
       type: 'image'
       timestamp: string
       query: string // file path
-      channels: Record<string, number[]>
+      channels: Record<string, MessageId[]>
     }
   | {
       type: 'text'
       timestamp: string
       query: string // text string
-      channels: Record<string, number[]>
+      channels: Record<string, MessageId[]>
     }
 
 export type SearchHistory = { searches: GlobalSearchSession[] }

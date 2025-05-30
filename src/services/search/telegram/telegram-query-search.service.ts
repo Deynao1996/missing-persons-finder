@@ -27,7 +27,7 @@ export class TelegramQuerySearchService {
         // Filter out reviewed messages
         const filteredResults = channelResults.filter((result) => {
           const id = extractMessageId(result.link)
-          return id !== null && !reviewedIds.has(id)
+          return id !== null && !reviewedIds.has(id as number)
         })
 
         if (filteredResults.length > 0) {

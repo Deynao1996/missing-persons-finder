@@ -2,37 +2,36 @@ import { Request, Response, NextFunction } from 'express'
 import { TelegramQuerySearchService } from '../services/search/telegram/telegram-query-search.service'
 import { TelegramFaceSearchService } from '../services/search/telegram/telegram-face-search.service'
 import { getPersonData } from '../utils/get-person-data.util'
+import { WebSearchService } from '../services/search/web/web-search.service'
 
 const telegramQuerySearch = new TelegramQuerySearchService()
 const telegramFaceSearch = new TelegramFaceSearchService()
+const webSearch = new WebSearchService()
 
 export const startSearchingByTextQuery = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { query } = req.body
 
     // Validate input
-    // if (!query) {
-    //   return res.status(400).json({ error: 'Search query is required' })
-    // }
+    if (!query) {
+      return res.status(400).json({ error: 'Search query is required' })
+    }
 
     const person = await getPersonData(Number(query))
     if (!person) return res.status(404).json({ error: 'No person folders found' })
 
-    const { fullName, imagePath, id } = person
-
-    // const queryId = query.trim().toLocaleLowerCase()
+    const { fullName, id } = person
 
     // Process search
-    // const searchResults = await telegramQuerySearch.performTextSearch(query, queryId)
-    const textResult = await telegramQuerySearch.performTextSearch(fullName, id)
+    const textResultsFromWeb = await webSearch.searchWebCache(fullName, id, process.env.SOURCE_NAME!)
+    const textResultFromTelegram = await telegramQuerySearch.performTextSearch(fullName, id)
+    const results = { ...textResultsFromWeb, ...textResultFromTelegram }
 
-    // Log results
-    // await telegramQuerySearch.logSearchSession(query, searchResults, queryId)
+    // Logs results
+    await telegramQuerySearch.logSearchSession(query, results, id)
+    await telegramQuerySearch.temporarilyMarkAsReviewed(id, results)
 
-    // Temporary auto-review (remove for production)
-    // await telegramQuerySearch.temporarilyMarkAsReviewed(queryId, searchResults)
-
-    return res.json({ fullName, results: textResult })
+    return res.json({ fullName, results })
   } catch (error) {
     next(error)
   }
@@ -40,7 +39,13 @@ export const startSearchingByTextQuery = async (req: Request, res: Response, nex
 
 export const startSearchingByImagePath = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { imagePath, minYear } = req.body
+    // const { imagePath, minYear } = req.body
+    const { minYear, query } = req.body
+
+    const person = await getPersonData(Number(query))
+    if (!person) return res.status(404).json({ error: 'No person folders found' })
+
+    const { fullName, imagePath, id } = person
 
     // Process search
     const { results, totalMatches } = await telegramFaceSearch.searchByImage(
@@ -51,13 +56,13 @@ export const startSearchingByImagePath = async (req: Request, res: Response, nex
     const queryId = imagePath
 
     // Log results
-    await telegramFaceSearch.logResults(imagePath, results, queryId)
+    // await telegramFaceSearch.logResults(imagePath, results, queryId)
 
     //TODO: Remove for production
     // Temporary auto-review (remove for production)
-    await telegramFaceSearch.temporaryMarkAsReviewed(queryId, results)
+    // await telegramFaceSearch.temporaryMarkAsReviewed(queryId, results)
 
-    res.json({ results, totalMatches })
+    res.json({ results, totalMatches, fullName })
   } catch (error) {
     next(error)
   }

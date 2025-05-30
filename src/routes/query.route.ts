@@ -3,7 +3,7 @@ import {
   runCombinedSearch,
   startSearchingByImagePath,
   startSearchingByTextQuery,
-} from '../controllers/telegram-query.controller'
+} from '../controllers/query.controller'
 
 const router = Router()
 
