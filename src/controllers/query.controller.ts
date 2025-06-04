@@ -1,37 +1,58 @@
 import { Request, Response, NextFunction } from 'express'
 import { TelegramQuerySearchService } from '../services/search/telegram/telegram-query-search.service'
 import { TelegramFaceSearchService } from '../services/search/telegram/telegram-face-search.service'
-import { getPersonData } from '../utils/get-person-data.util'
 import { WebSearchService } from '../services/search/web/web-search.service'
+import { WEB_PRIMARY_CACHE_FILE, WEB_SECONDARY_CACHE_FILE } from '../constants'
+import { PersonsDataService } from '../services/persons/persons-data.service'
+import { PaginatePagesService } from '../services/paginate/paginate-pages.service'
+
+//TODO: TODO: Add more specific search for text query
 
 const telegramQuerySearch = new TelegramQuerySearchService()
 const telegramFaceSearch = new TelegramFaceSearchService()
 const webSearch = new WebSearchService()
+const personsData = new PersonsDataService()
+const paginatePages = new PaginatePagesService()
 
 export const startSearchingByTextQuery = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { query } = req.body
+    const { query, all, page = 1, pageSize = 10 } = req.body
+    const { persons, paged } = await paginatePages.getPagedPersons(query, all, page, pageSize)
 
-    // Validate input
-    if (!query) {
-      return res.status(400).json({ error: 'Search query is required' })
+    const allResults = []
+
+    for (const { id, fullName } of paged) {
+      const primary = await webSearch.searchWebCache(
+        fullName,
+        id,
+        process.env.SOURCE_PRIMARY_NAME!,
+        WEB_PRIMARY_CACHE_FILE,
+      )
+
+      const secondary = await webSearch.searchWebCache(
+        fullName,
+        id,
+        process.env.SOURCE_SECONDARY_NAME!,
+        WEB_SECONDARY_CACHE_FILE,
+      )
+
+      const telegram = await telegramQuerySearch.performTextSearch(fullName, id)
+
+      const results = { ...secondary, ...primary, ...telegram }
+
+      await telegramQuerySearch.logSearchSession(fullName, results, id)
+      await telegramQuerySearch.temporarilyMarkAsReviewed(id, results)
+
+      allResults.push({ fullName, id, results })
     }
 
-    const person = await getPersonData(Number(query))
-    if (!person) return res.status(404).json({ error: 'No person folders found' })
-
-    const { fullName, id } = person
-
-    // Process search
-    const textResultsFromWeb = await webSearch.searchWebCache(fullName, id, process.env.SOURCE_NAME!)
-    const textResultFromTelegram = await telegramQuerySearch.performTextSearch(fullName, id)
-    const results = { ...textResultsFromWeb, ...textResultFromTelegram }
-
-    // Logs results
-    await telegramQuerySearch.logSearchSession(query, results, id)
-    await telegramQuerySearch.temporarilyMarkAsReviewed(id, results)
-
-    return res.json({ fullName, results })
+    res.json({
+      totalPersons: persons.length,
+      page,
+      pageSize,
+      hasMore: persons.length > page * pageSize,
+      results: allResults,
+    })
   } catch (error) {
     next(error)
   }
@@ -39,38 +60,42 @@ export const startSearchingByTextQuery = async (req: Request, res: Response, nex
 
 export const startSearchingByImagePath = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // const { imagePath, minYear } = req.body
-    const { minYear, query } = req.body
+    const { query, all, minYear, page = 1, pageSize = 10 } = req.body
+    const { persons, paged } = await paginatePages.getPagedPersons(query, all, page, pageSize)
 
-    const person = await getPersonData(Number(query))
-    if (!person) return res.status(404).json({ error: 'No person folders found' })
+    const allResults = []
 
-    const { fullName, imagePath, id } = person
+    for (const { fullName, imagePath, id } of paged) {
+      const queryId = imagePath
 
-    // Process search
-    const { results, totalMatches } = await telegramFaceSearch.searchByImage(
-      imagePath,
-      imagePath,
-      minYear ? parseInt(minYear, 10) : undefined,
-    )
-    const queryId = imagePath
+      const { results, totalMatches } = await telegramFaceSearch.searchByImage(
+        imagePath,
+        imagePath,
+        minYear ? parseInt(minYear, 10) : undefined,
+      )
 
-    // Log results
-    // await telegramFaceSearch.logResults(imagePath, results, queryId)
+      await telegramFaceSearch.logResults(imagePath, results, queryId)
+      await telegramFaceSearch.temporaryMarkAsReviewed(queryId, results)
 
-    //TODO: Remove for production
-    // Temporary auto-review (remove for production)
-    // await telegramFaceSearch.temporaryMarkAsReviewed(queryId, results)
+      allResults.push({ fullName, id, totalMatches, results })
+    }
 
-    res.json({ results, totalMatches, fullName })
+    res.json({
+      totalPersons: persons.length,
+      page,
+      pageSize,
+      hasMore: persons.length > page * pageSize,
+      results: allResults,
+    })
   } catch (error) {
     next(error)
   }
 }
 
+//TODO: Add a combine search if need
 export const runCombinedSearch = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const person = await getPersonData()
+    const person = await personsData.getPersonData()
     if (!person) return res.status(404).json({ error: 'No person folders found' })
 
     const { fullName, imagePath, id } = person
@@ -78,18 +103,18 @@ export const runCombinedSearch = async (req: Request, res: Response, next: NextF
     console.log('▶️ Running text + image search for:', fullName)
 
     const faceResult = await telegramFaceSearch.searchByImage(imagePath, id)
-    const textResult = await telegramQuerySearch.performTextSearch(fullName, id)
+    // const textResult = await telegramQuerySearch.performTextSearch(fullName, id)
 
     // Optionally log both
-    await telegramFaceSearch.logResults(imagePath, faceResult.results, id)
-    await telegramQuerySearch.logSearchSession(fullName, textResult, id)
+    // await telegramFaceSearch.logResults(imagePath, faceResult.results, id)
+    // await telegramQuerySearch.logSearchSession(fullName, textResult, id)
 
-    await telegramFaceSearch.temporaryMarkAsReviewed(id, faceResult.results)
-    await telegramQuerySearch.temporarilyMarkAsReviewed(id, textResult)
+    // await telegramFaceSearch.temporaryMarkAsReviewed(id, faceResult.results)
+    // await telegramQuerySearch.temporarilyMarkAsReviewed(id, textResult)
 
     res.json({
       textQuery: fullName,
-      textResults: textResult,
+      textResults: {},
       faceResults: faceResult,
     })
   } catch (err) {

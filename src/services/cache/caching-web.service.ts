@@ -1,8 +1,9 @@
 import puppeteer, { Page } from 'puppeteer'
 import fs from 'fs/promises'
 import { appendToNDJSON, readNDJSON } from '../../utils/ndjson.util'
-import { WEB_CACHE_DIR, WEB_CACHE_FILE } from '../../constants'
+import { WEB_PRIMARY_CACHE_DIR, WEB_PRIMARY_CACHE_FILE } from '../../constants'
 import { TextMatchResult } from '../../types'
+import { getFormattedDate } from '../../utils/dates.util'
 
 export class CachingWebService {
   async createFullCache(): Promise<void> {
@@ -10,7 +11,7 @@ export class CachingWebService {
     const page = await browser.newPage()
     await this.setupPage(page)
 
-    await this.ensureDirectoryExists(WEB_CACHE_DIR)
+    await this.ensureDirectoryExists(WEB_PRIMARY_CACHE_DIR)
 
     const allItems: TextMatchResult[] = []
 
@@ -19,7 +20,9 @@ export class CachingWebService {
 
     while (hasNextPage) {
       const url =
-        currentPage === 1 ? `${process.env.SOURCE_BASE_URL!}/` : `${process.env.SOURCE_BASE_URL!}/page/${currentPage}`
+        currentPage === 1
+          ? `${process.env.SOURCE_PRIMARY_URL!}/`
+          : `${process.env.SOURCE_PRIMARY_URL!}/page/${currentPage}`
 
       console.log(`🔎 Scraping page ${currentPage}: ${url}`)
 
@@ -37,7 +40,7 @@ export class CachingWebService {
           hasNextPage = false
           console.log('🚫 No more cards found. Stopping.')
         } else {
-          const date = this.formatDate()
+          const date = getFormattedDate()
           allItems.push(...cards.map((card) => ({ ...card, date })))
           currentPage++
         }
@@ -50,12 +53,12 @@ export class CachingWebService {
     await browser.close()
 
     // Write all entries as NDJSON
-    await fs.writeFile(WEB_CACHE_FILE, allItems.map((item) => JSON.stringify(item)).join('\n') + '\n')
-    console.log(`✅ Full cache saved to ${WEB_CACHE_FILE}`)
+    await fs.writeFile(WEB_PRIMARY_CACHE_FILE, allItems.map((item) => JSON.stringify(item)).join('\n') + '\n')
+    console.log(`✅ Full cache saved to ${WEB_PRIMARY_CACHE_FILE}`)
   }
 
   async updateCacheIfNew(): Promise<{ newItems: number }> {
-    const existing = await readNDJSON(WEB_CACHE_FILE)
+    const existing = await readNDJSON(WEB_PRIMARY_CACHE_FILE)
     const existingTitles = new Set(existing.map((item) => item.text))
 
     const browser = await puppeteer.launch({ headless: false })
@@ -69,7 +72,9 @@ export class CachingWebService {
 
     while (hasNextPage) {
       const url =
-        currentPage === 1 ? `${process.env.SOURCE_BASE_URL!}/` : `${process.env.SOURCE_BASE_URL!}/page/${currentPage}`
+        currentPage === 1
+          ? `${process.env.SOURCE_PRIMARY_URL!}/`
+          : `${process.env.SOURCE_PRIMARY_URL!}/page/${currentPage}`
 
       console.log(`🔄 Checking page ${currentPage}: ${url}`)
 
@@ -96,7 +101,7 @@ export class CachingWebService {
             break
           }
 
-          newEntries.push({ ...card, date: this.formatDate() })
+          newEntries.push({ ...card, date: getFormattedDate() })
         }
 
         currentPage++
@@ -109,7 +114,7 @@ export class CachingWebService {
     await browser.close()
 
     if (newEntries.length > 0) {
-      await appendToNDJSON(newEntries, WEB_CACHE_FILE)
+      await appendToNDJSON(newEntries, WEB_PRIMARY_CACHE_FILE)
       console.log(`✅ Added ${newEntries.length} new items to cache.`)
     } else {
       console.log('ℹ️ No new items found.')
@@ -123,10 +128,10 @@ export class CachingWebService {
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
     )
     try {
-      await page.goto(process.env.SOURCE_BASE_URL!, { waitUntil: 'networkidle2' })
+      await page.goto(process.env.SOURCE_PRIMARY_URL!, { waitUntil: 'networkidle2' })
     } catch (error) {
       console.warn('Initial load failed, retrying with cache...')
-      await page.goto(process.env.SOURCE_BASE_URL!, {
+      await page.goto(process.env.SOURCE_PRIMARY_URL!, {
         waitUntil: 'networkidle2',
         timeout: 15000,
       })
@@ -139,16 +144,5 @@ export class CachingWebService {
     } catch (e) {
       console.error('Failed to create directory:', dir)
     }
-  }
-
-  private formatDate(): string {
-    return new Date().toLocaleString('uk-UA', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    })
   }
 }

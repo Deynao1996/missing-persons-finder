@@ -3,17 +3,21 @@ import { extractMessageId, parseSearchQuery } from '../../../utils/extract.utils
 import { NameVariantService } from '../../name-matching/name-variants.service'
 import fs from 'fs/promises'
 import { LoggerService } from '../../logs/logger.service'
-import { WEB_CACHE_FILE } from '../../../constants'
 
 export class WebSearchService {
   private nameVariantService = new NameVariantService()
   private loggerService = new LoggerService()
 
-  async searchWebCache(query: string, queryId: string, source: string): Promise<Record<string, TextMatchResult[]>> {
+  async searchWebCache(
+    query: string,
+    queryId: string,
+    source: string,
+    webCacheFile: string,
+  ): Promise<Record<string, TextMatchResult[]>> {
     const rawQueries = parseSearchQuery(query)
     const parsedNames = rawQueries.map(this.nameVariantService.parseNameQuery)
 
-    const fileContent = await fs.readFile(WEB_CACHE_FILE, 'utf-8')
+    const fileContent = await fs.readFile(webCacheFile, 'utf-8')
     const lines = fileContent.trim().split('\n')
 
     const log = await this.loggerService.loadChannelLog()
@@ -30,6 +34,7 @@ export class WebSearchService {
       }
 
       const lowerText = entry.text.toLowerCase()
+      const linkWithoutSlash = this.removeTrailingSlash(entry.link)
 
       for (const { firstName, lastName } of parsedNames) {
         if (!lastName) continue
@@ -46,11 +51,11 @@ export class WebSearchService {
             continue
           }
         }
-
-        results.push(entry)
+        results.push({ ...entry, link: linkWithoutSlash })
         break // Found a match, skip to next line
       }
     }
+    console.log(`✅ Finished search in ${source} for "${query}"`)
 
     if (results.length === 0) {
       return {}
@@ -59,5 +64,9 @@ export class WebSearchService {
         [source]: results,
       }
     }
+  }
+
+  private removeTrailingSlash(url: string): string {
+    return url.endsWith('/') ? url.slice(0, -1) : url
   }
 }

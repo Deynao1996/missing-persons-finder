@@ -42,6 +42,7 @@ export const updateCache = async (_: Request, res: Response, next: NextFunction)
       }
     }
 
+    //TODO: Remove from production without proxy/vpn
     await cachingWebService.updateCacheIfNew()
 
     res.json({ results: 'Cache updated' })

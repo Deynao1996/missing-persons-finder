@@ -188,6 +188,7 @@ export class TelegramScraperService extends TelegramClientService {
 
       for (const match of matches) {
         const parsed = parseTelegramLink(match.sourceImageUrl)
+
         if (parsed && parsed.channel === channel) {
           const messageId = parsed.messageId
           if (!messageIdToMatchMap[messageId]) {
@@ -204,7 +205,11 @@ export class TelegramScraperService extends TelegramClientService {
       const messages = await scraper.getMessagesFromChannel(channel, messageIds)
 
       for (const message of messages) {
+        if (!message || typeof message.id !== 'number') {
+          continue
+        }
         const matchesForMessage = messageIdToMatchMap[message.id] || []
+
         for (const match of matchesForMessage) {
           enrichedResults[channel].push({
             ...match,

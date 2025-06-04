@@ -30,7 +30,7 @@ export class LoggerService {
     })
   }
 
-  async saveSearchResultsLog<T extends { link?: string }>(
+  async saveSearchResultsLog<T>(
     queryId: string,
     results: Record<string, T[]>,
     extractMessageId: (result: T) => MessageId | null,

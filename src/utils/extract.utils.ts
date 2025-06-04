@@ -12,8 +12,12 @@ export function extractMessageId(link: string): number | string | null {
       return match ? parseInt(match[1], 10) : null
     }
 
-    if (url.hostname.includes(process.env.SOURCE_DOMAIN!)) {
+    if (
+      url.hostname.includes(process.env.SOURCE_PRIMARY_DOMAIN!) ||
+      url.hostname.includes(process.env.SOURCE_SECONDARY_DOMAIN!)
+    ) {
       const parts = url.pathname.split('/').filter(Boolean)
+
       return parts.at(-1) || null
     }
 
