@@ -308,23 +308,40 @@ export class TelegramScraperService extends TelegramClientService {
     const lowerFirst = firstName.toLowerCase()
     const lowerLast = lastName.toLowerCase()
 
-    // Full forms
-    const full1 = `${lowerLast} ${lowerFirst}`
-    const full2 = `${lowerFirst} ${lowerLast}`
+    // Generate patterns with strict rules
+    const variants: string[] = []
 
-    // Abbreviated forms
-    const short1 = `${lowerLast} ${lowerFirst[0]}`
-    const short2 = `${lowerFirst[0]} ${lowerLast}`
+    // Full exact matches
+    variants.push(`${lowerLast} ${lowerFirst}`)
+    variants.push(`${lowerFirst} ${lowerLast}`)
+    variants.push(`${lowerLast}, ${lowerFirst}`)
 
-    // Optionally: comma-separated form
-    const commaForm = `${lowerLast}, ${lowerFirst}`
+    // Initial-only matches (e.g., Бойко М)
+    variants.push(`${lowerLast} ${lowerFirst[0]}`)
+    variants.push(`${lowerFirst[0]} ${lowerLast}`)
 
-    return (
-      lowerText.includes(full1) ||
-      lowerText.includes(full2) ||
-      lowerText.includes(short1) ||
-      lowerText.includes(short2) ||
-      lowerText.includes(commaForm)
-    )
+    // Prefix-based short matches (2–3 letters only)
+    if (lowerFirst.length >= 2) {
+      const prefix2 = lowerFirst.slice(0, 2)
+      variants.push(`${lowerLast} ${prefix2}`)
+      variants.push(`${prefix2} ${lowerLast}`)
+    }
+
+    if (lowerFirst.length >= 3) {
+      const prefix3 = lowerFirst.slice(0, 3)
+      variants.push(`${lowerLast} ${prefix3}`)
+      variants.push(`${prefix3} ${lowerLast}`)
+    }
+
+    // Check each variant with a "soft" word boundary
+    return variants.some((variant) => {
+      // Match start/end of line or space/punctuation around
+      const pattern = new RegExp(`(?:^|\\s|[^а-яА-Яa-zA-Z])${this.escapeRegex(variant)}(?:\\s|$|[^а-яА-Яa-zA-Z])`, 'i')
+      return pattern.test(lowerText)
+    })
+  }
+
+  private escapeRegex(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   }
 }

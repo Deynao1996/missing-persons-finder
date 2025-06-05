@@ -6,8 +6,6 @@ import { WEB_PRIMARY_CACHE_FILE, WEB_SECONDARY_CACHE_FILE } from '../constants'
 import { PersonsDataService } from '../services/persons/persons-data.service'
 import { PaginatePagesService } from '../services/paginate/paginate-pages.service'
 
-//TODO: TODO: Add more specific search for text query
-
 const telegramQuerySearch = new TelegramQuerySearchService()
 const telegramFaceSearch = new TelegramFaceSearchService()
 const webSearch = new WebSearchService()
@@ -38,7 +36,7 @@ export const startSearchingByTextQuery = async (req: Request, res: Response, nex
 
       const telegram = await telegramQuerySearch.performTextSearch(fullName, id)
 
-      const results = { ...secondary, ...primary, ...telegram }
+      const results = { ...primary, ...secondary, ...telegram }
 
       await telegramQuerySearch.logSearchSession(fullName, results, id)
       await telegramQuerySearch.temporarilyMarkAsReviewed(id, results)

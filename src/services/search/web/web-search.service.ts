@@ -40,19 +40,30 @@ export class WebSearchService {
         if (!lastName) continue
 
         const lowerLast = lastName.toLowerCase()
-        if (!lowerText.includes(lowerLast)) continue
+        const lowerFirst = firstName?.toLowerCase()
 
-        const words = lowerText.split(/\s+/)
-        const lastIndex = words.findIndex((word) => word === lowerLast)
+        // Split text into words, remove punctuation
+        const words = lowerText.split(/[\s,.;!?]+/)
 
-        if (lastIndex !== -1 && firstName) {
-          const nextWord = words[lastIndex + 1]
-          if (!nextWord || nextWord[0] !== firstName[0].toLowerCase()) {
-            continue
+        for (let i = 0; i < words.length; i++) {
+          if (words[i] === lowerLast) {
+            const nextWord = words[i + 1]
+            if (!lowerFirst || !nextWord) {
+              results.push({ ...entry, link: linkWithoutSlash })
+              break
+            }
+
+            // Require next word to match full first name or a strict prefix
+            const isExact = nextWord === lowerFirst
+            const isPrefix2 = lowerFirst.length >= 2 && nextWord.startsWith(lowerFirst.slice(0, 2))
+            const isPrefix3 = lowerFirst.length >= 3 && nextWord.startsWith(lowerFirst.slice(0, 3))
+
+            if (isExact || isPrefix2 || isPrefix3) {
+              results.push({ ...entry, link: linkWithoutSlash })
+              break
+            }
           }
         }
-        results.push({ ...entry, link: linkWithoutSlash })
-        break // Found a match, skip to next line
       }
     }
     console.log(`✅ Finished search in ${source} for "${query}"`)
