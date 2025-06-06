@@ -1,15 +1,16 @@
 import express from 'express'
 import cors from 'cors'
 import dotenv from 'dotenv'
+import './telegram-bot'
 
 import cacheChannelRoutes from './routes/cache.route'
 import queryRoutes from './routes/query.route'
 import testQueryRoutes from './routes/test.route'
 import { handleErrors } from './middlewares/handle-errors.middleware'
 import { initFaceAPI } from './utils/face-api/init-face.util'
+import { PORT } from './constants'
 
 dotenv.config()
-const PORT = process.env.PORT || 4000
 
 const app = express()
 app.use(cors())

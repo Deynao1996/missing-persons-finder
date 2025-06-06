@@ -1,3 +1,7 @@
+import dotenv from 'dotenv'
+
+dotenv.config()
+
 export const MAX_IMAGES = 300
 export const BATCH_SIZE = 20
 //TODO: Change for production
@@ -18,3 +22,4 @@ export const SEARCH_TELEGRAM_FROM = '2022-04-21'
 //   'fgjgdcbjug',
 // ]
 export const SKIPPED_CHANNELS = undefined
+export const PORT = process.env.PORT || 4000

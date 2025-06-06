@@ -33,19 +33,29 @@ export const initializeWebCache = async (_: Request, res: Response, next: NextFu
 export const updateCache = async (_: Request, res: Response, next: NextFunction) => {
   try {
     const channels = await extractAvailableTelegramChannels(['fgjgdcbjug'])
+    const updateResults: Record<string, number> = {}
 
     for (const channelName of channels) {
       try {
-        await cachingChannelService.updateChannelCache(channelName)
+        const result = await cachingChannelService.updateChannelCache(channelName)
+        updateResults[`@${channelName}`] = result?.newItems ?? 0
       } catch (err) {
         console.warn(`⚠️ Failed to update cache for ${channelName}:`, err)
       }
     }
 
-    //TODO: Remove from production without proxy/vpn
-    await cachingWebService.updateCacheIfNew()
+    // ✅ Include web cache result
+    try {
+      const webResult = await cachingWebService.updateCacheIfNew()
+      updateResults['🌐 Веб джерела'] = webResult?.newItems ?? 0
+    } catch (err) {
+      console.warn(`⚠️ Failed to update web cache:`, err)
+    }
 
-    res.json({ results: 'Cache updated' })
+    res.json({
+      success: true,
+      updated: updateResults,
+    })
   } catch (error) {
     next(error)
   }

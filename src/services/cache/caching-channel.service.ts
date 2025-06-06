@@ -19,7 +19,7 @@ export class CachingChannelService extends TelegramClientService {
   }
 
   async updateChannelCache(channelUsername: string) {
-    await this.processChannelCache(channelUsername, false)
+    return await this.processChannelCache(channelUsername, false)
   }
 
   private async processChannelCache(channelUsername: string, isInitial: boolean) {
@@ -51,10 +51,13 @@ export class CachingChannelService extends TelegramClientService {
           newlySkipped,
         })
 
+    let newItemCount = 0
+
     for await (const batch of generator) {
       const newLines = await this.processNewItems(batch, allSeen)
 
       if (newLines.length > 0) {
+        newItemCount += newLines.length
         const year = new Date(batch[0].meta.msgDate).getFullYear()
         const filePath = path.join(channelFolder, `${year}.ndjson`)
         await fs.appendFile(filePath, newLines.join('\n') + '\n')
@@ -72,6 +75,7 @@ export class CachingChannelService extends TelegramClientService {
 
     const status = isInitial ? '✅ Initial cache completed' : '✅ Channel update completed'
     console.log(`${status} for @${channelUsername}`)
+    return { newItems: newItemCount }
   }
 
   private async loadExistingCacheIdsFromFolder(folderPath: string): Promise<Set<number>> {
