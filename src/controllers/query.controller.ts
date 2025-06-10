@@ -12,9 +12,9 @@ const webSearch = new WebSearchService()
 const personsData = new PersonsDataService()
 const paginatePages = new PaginatePagesService()
 
-export const startSearchingByTextQuery = async (req: Request, res: Response, next: NextFunction) => {
+export const startSearchingByTextFromDataQuery = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { query, all, page = 1, pageSize = 10 } = req.body
+    const { query, all, page = 1, pageSize = 5 } = req.body
     const { persons, paged } = await paginatePages.getPagedPersons(query, all, page, pageSize)
 
     const allResults = []
@@ -49,6 +49,41 @@ export const startSearchingByTextQuery = async (req: Request, res: Response, nex
       page,
       pageSize,
       hasMore: persons.length > page * pageSize,
+      results: allResults,
+    })
+  } catch (error) {
+    next(error)
+  }
+}
+
+export const startSearchingByTextFromQuery = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const { fullName } = req.body
+    const id = fullName.trim()
+
+    const allResults = []
+
+    const primary = await webSearch.searchWebCache(
+      fullName,
+      id,
+      process.env.SOURCE_PRIMARY_NAME!,
+      WEB_PRIMARY_CACHE_FILE,
+    )
+
+    const secondary = await webSearch.searchWebCache(
+      fullName,
+      id,
+      process.env.SOURCE_SECONDARY_NAME!,
+      WEB_SECONDARY_CACHE_FILE,
+    )
+
+    const telegram = await telegramQuerySearch.performTextSearch(fullName, id)
+
+    const results = { ...primary, ...secondary, ...telegram }
+
+    allResults.push({ fullName, id, results })
+
+    res.json({
       results: allResults,
     })
   } catch (error) {

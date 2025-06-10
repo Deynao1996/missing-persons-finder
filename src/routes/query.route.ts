@@ -2,12 +2,17 @@ import { Router } from 'express'
 import {
   runCombinedSearch,
   startSearchingByImagePath,
-  startSearchingByTextQuery,
+  startSearchingByTextFromDataQuery,
+  startSearchingByTextFromQuery,
 } from '../controllers/query.controller'
 
 const router = Router()
 
-router.post('/', startSearchingByTextQuery)
+router.post('/data/by-full-name', startSearchingByTextFromDataQuery)
+
+router.post('/data/by-image', startSearchingByImagePath)
+
+router.post('/by-full-name', startSearchingByTextFromQuery)
 
 router.post('/by-image', startSearchingByImagePath)
 
